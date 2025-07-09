@@ -1,0 +1,6 @@
+{"time":"2025-07-04T10:50:14.89161114-04:00","level":"INFO","msg":"stream: starting","core version":"0.21.0"}
+{"time":"2025-07-04T10:50:15.069920144-04:00","level":"INFO","msg":"stream: created new stream","id":"kpakfblc"}
+{"time":"2025-07-04T10:50:15.069980183-04:00","level":"INFO","msg":"stream: started","id":"kpakfblc"}
+{"time":"2025-07-04T10:50:15.070276922-04:00","level":"INFO","msg":"handler: started","stream_id":"kpakfblc"}
+{"time":"2025-07-04T10:50:15.070366191-04:00","level":"INFO","msg":"sender: started","stream_id":"kpakfblc"}
+{"time":"2025-07-04T10:50:15.07055394-04:00","level":"INFO","msg":"writer: Do: started","stream_id":"kpakfblc"}

@@ -1,0 +1,23 @@
+2025-07-04 19:58:37,620 INFO    MainThread:3556924 [wandb_setup.py:_flush():70] Current SDK version is 0.19.11
+2025-07-04 19:58:37,620 INFO    MainThread:3556924 [wandb_setup.py:_flush():70] Configure stats pid to 3556924
+2025-07-04 19:58:37,620 INFO    MainThread:3556924 [wandb_setup.py:_flush():70] Loading settings from /home/zayn/.config/wandb/settings
+2025-07-04 19:58:37,620 INFO    MainThread:3556924 [wandb_setup.py:_flush():70] Loading settings from /home/zayn/genexp/wandb/settings
+2025-07-04 19:58:37,620 INFO    MainThread:3556924 [wandb_setup.py:_flush():70] Loading settings from environment variables
+2025-07-04 19:58:37,620 INFO    MainThread:3556924 [wandb_init.py:setup_run_log_directory():724] Logging user logs to /home/zayn/genexp/wandb/run-20250704_195837-90bt46ew/logs/debug.log
+2025-07-04 19:58:37,621 INFO    MainThread:3556924 [wandb_init.py:setup_run_log_directory():725] Logging internal logs to /home/zayn/genexp/wandb/run-20250704_195837-90bt46ew/logs/debug-internal.log
+2025-07-04 19:58:37,621 INFO    MainThread:3556924 [wandb_init.py:init():852] calling init triggers
+2025-07-04 19:58:37,621 INFO    MainThread:3556924 [wandb_init.py:init():857] wandb.init called with sweep_config: {}
+config: {'gpu_ids': [0], 'clean_cache': False, 'save_record': False, 'is_multigpu': False, 'save_epoch': 50, 'val_ratio': 0.2, 'total_epochs': 150, 'start_epoch': 0, 'dataset_path': '/home/zayn/dataset_processed_traffic/highD-dataset-v1.0', 'log_dir': '/home/zayn/genexp/logs', 'wandb_project': 'TrafficVAE', 'wandb_name': 'Train', 'wandb_entity': 'TrafficGeneration', 'save_freq': 5, 'generator': False, 'attention_generator': True, 'attten_net': ['TransformerConv', 'GATConv', 'SAGEConv'], 'convlayer': 'GATConv', 'aggr': 'Max', 'lr': 0.0001, 'n_ft_dim': 256, 'block_latent_dim': 20, 'head_num': 12, 'batch_size': 200, 'latent_dim': 512, 'template_width': 30, 'template_height': 4, 'exist_weight': 3.0, 'pos_weight': 4.0, 'kld_weight': 0.5, 'size_weight': 4.0, 'extsum_weight': 2.0, 'shape_weight': 0.05, 'iou_weight': 1.0, 'height_weight': 4.0, 'resume': False, 'resume_dir': 'Your resume folder', 'import_name': 'latest', 'resume_epoch': 400, 'bench_path': '/home/zayn/genexp/logs/model_149.pth', 'bench_batch_size': 1, '_wandb': {}}
+2025-07-04 19:58:37,621 INFO    MainThread:3556924 [wandb_init.py:init():893] starting backend
+2025-07-04 19:58:37,621 INFO    MainThread:3556924 [wandb_init.py:init():897] sending inform_init request
+2025-07-04 19:58:37,632 INFO    MainThread:3556924 [backend.py:_multiprocessing_setup():101] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2025-07-04 19:58:37,632 INFO    MainThread:3556924 [wandb_init.py:init():907] backend started and connected
+2025-07-04 19:58:37,635 INFO    MainThread:3556924 [wandb_init.py:init():1005] updated telemetry
+2025-07-04 19:58:37,636 INFO    MainThread:3556924 [wandb_init.py:init():1029] communicating run to backend with 90.0 second timeout
+2025-07-04 19:58:38,007 INFO    MainThread:3556924 [wandb_init.py:init():1104] starting run threads in backend
+2025-07-04 19:58:38,208 INFO    MainThread:3556924 [wandb_run.py:_console_start():2573] atexit reg
+2025-07-04 19:58:38,208 INFO    MainThread:3556924 [wandb_run.py:_redirect():2421] redirect: wrap_raw
+2025-07-04 19:58:38,208 INFO    MainThread:3556924 [wandb_run.py:_redirect():2490] Wrapping output streams.
+2025-07-04 19:58:38,208 INFO    MainThread:3556924 [wandb_run.py:_redirect():2513] Redirects installed.
+2025-07-04 19:58:38,210 INFO    MainThread:3556924 [wandb_init.py:init():1150] run started, returning control to user process
+2025-07-04 19:58:40,384 INFO    MsgRouterThr:3556924 [mailbox.py:close():129] [no run ID] Closing mailbox, abandoning 1 handles.

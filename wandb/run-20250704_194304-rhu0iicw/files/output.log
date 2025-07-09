@@ -1,0 +1,45 @@
+Start Training...
+Traceback (most recent call last):
+  File "/home/zayn/genexp/train.py", line 157, in <module>
+    runner.train()
+  File "/home/zayn/genexp/train.py", line 93, in train
+    self.train_step(metrics_recorder)
+  File "/home/zayn/genexp/train.py", line 113, in train_step
+    pos = self.model(data)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/genexp/model.py", line 170, in forward
+    mu, log_var = self.encode(data)
+  File "/home/zayn/genexp/model.py", line 143, in encode
+    latent = self.aggregate(g_embd)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/linear.py", line 117, in forward
+    return F.linear(input, self.weight, self.bias)
+RuntimeError: mat1 and mat2 shapes cannot be multiplied (200x9728 and 1280x512)
+Traceback (most recent call last):
+  File "/home/zayn/genexp/train.py", line 157, in <module>
+    runner.train()
+  File "/home/zayn/genexp/train.py", line 93, in train
+    self.train_step(metrics_recorder)
+  File "/home/zayn/genexp/train.py", line 113, in train_step
+    pos = self.model(data)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/genexp/model.py", line 170, in forward
+    mu, log_var = self.encode(data)
+  File "/home/zayn/genexp/model.py", line 143, in encode
+    latent = self.aggregate(g_embd)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/linear.py", line 117, in forward
+    return F.linear(input, self.weight, self.bias)
+RuntimeError: mat1 and mat2 shapes cannot be multiplied (200x9728 and 1280x512)

@@ -1,0 +1,21 @@
+Start Training...
+Traceback (most recent call last):
+  File "/home/zayn/genexp/train.py", line 161, in <module>
+    runner.train()
+  File "/home/zayn/genexp/train.py", line 99, in train
+    self.validation_step(metrics_recorder)
+  File "/home/zayn/genexp/train.py", line 151, in validation_step
+    "Valimages": plot_comparison(data.pos[0], pos[0], data.edge_index[0], idx),
+  File "/home/zayn/genexp/utils.py", line 53, in plot_comparison
+    for i, j in edge_index.T:
+TypeError: cannot unpack non-iterable numpy.int64 object
+Traceback (most recent call last):
+  File "/home/zayn/genexp/train.py", line 161, in <module>
+    runner.train()
+  File "/home/zayn/genexp/train.py", line 99, in train
+    self.validation_step(metrics_recorder)
+  File "/home/zayn/genexp/train.py", line 151, in validation_step
+    "Valimages": plot_comparison(data.pos[0], pos[0], data.edge_index[0], idx),
+  File "/home/zayn/genexp/utils.py", line 53, in plot_comparison
+    for i, j in edge_index.T:
+TypeError: cannot unpack non-iterable numpy.int64 object

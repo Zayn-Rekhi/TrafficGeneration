@@ -1,0 +1,60 @@
+Start Training...
+[34m[1mwandb[0m: [33mWARNING[0m Saving files without folders. If you want to preserve subdirectories pass base_path to wandb.save, i.e. wandb.save("/mnt/folder/file.h5", base_path="/mnt")
+Epoch 0: Train Loss - {'Posloss_Train': 847.48079072069} Val Loss - {'Posloss_Val': 526.2149473063151}
+Epoch 1: Train Loss - {'Posloss_Train': 464.6165556427616} Val Loss - {'Posloss_Val': 422.41507629394533}
+Traceback (most recent call last):
+  File "/home/zayn/genexp/train.py", line 171, in <module>
+    runner.train()
+  File "/home/zayn/genexp/train.py", line 95, in train
+    t_loss = self.train_step()
+  File "/home/zayn/genexp/train.py", line 115, in train_step
+    pos = self.model(data)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/genexp/model.py", line 170, in forward
+    mu, log_var = self.encode(data)
+  File "/home/zayn/genexp/model.py", line 125, in encode
+    pos = F.relu(self.pos_init(pos_org))
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/linear.py", line 117, in forward
+    return F.linear(input, self.weight, self.bias)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "/home/zayn/genexp/train.py", line 171, in <module>
+    runner.train()
+  File "/home/zayn/genexp/train.py", line 95, in train
+    t_loss = self.train_step()
+  File "/home/zayn/genexp/train.py", line 115, in train_step
+      File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/genexp/model.py", line 170, in forward
+    mu, log_var = self.encode(data)
+  File "/home/zayn/genexp/model.py", line 125, in encode
+    pos = F.relu(self.pos_init(pos_org))
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/nn/modules/linear.py", line 117, in forward
+    return F.linear(input, self.weight, self.bias)
+KeyboardInterrupt
+Exception ignored in atexit callback: <function _start_and_connect_service.<locals>.teardown_atexit at 0x7f21ee062b00>
+Traceback (most recent call last):
+  File "/home/zayn/.local/lib/python3.10/site-packages/wandb/sdk/lib/service_connection.py", line 94, in teardown_atexit
+    conn.teardown(hooks.exit_code)
+  File "/home/zayn/.local/lib/python3.10/site-packages/wandb/sdk/lib/service_connection.py", line 226, in teardown
+    self._router.join()
+  File "/home/zayn/.local/lib/python3.10/site-packages/wandb/sdk/interface/router.py", line 75, in join
+    self._thread.join()
+  File "/usr/lib/python3.10/threading.py", line 1096, in join
+    self._wait_for_tstate_lock()
+  File "/usr/lib/python3.10/threading.py", line 1116, in _wait_for_tstate_lock
+    if lock.acquire(block, timeout):
+KeyboardInterrupt:

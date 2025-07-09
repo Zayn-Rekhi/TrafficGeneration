@@ -263,12 +263,20 @@ class AttentionBlockGenerator(BlockGenerator):
 
 
         if opt['convlayer'] in use_head:
-
             self.d_posx_0 = nn.Linear(self.latent_ch * self.head, self.latent_ch)
             self.d_posx_1 = nn.Linear(self.latent_ch, 1)
 
             self.d_posy_0 = nn.Linear(self.latent_ch * self.head, self.latent_ch)
             self.d_posy_1 = nn.Linear(self.latent_ch, 1)
+
+            self.d_act_type_0 = nn.Linear(self.latent_ch * self.head, self.latent_ch)
+            self.d_act_type_1 = nn.Linear(self.latent_ch, 6)
+
+            self.d_direction_0 = nn.Linear(self.latent_ch * self.head, self.latent_ch)
+            self.d_direction_1 = nn.Linear(self.latent_ch, 1)
+
+            self.d_lane_index_0 = nn.Linear(self.latent_ch * self.head, self.latent_ch)
+            self.d_lane_index_1 = nn.Linear(self.latent_ch, 10)
 
 
         for m in self.modules():

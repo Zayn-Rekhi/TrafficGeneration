@@ -66,11 +66,6 @@ class Benchmark:
 
         self.model.load_state_dict(torch.load(self.opts['bench_path']))
         self.model.to(self.device)
-        
-        self.loss_dict = {
-            "Posloss": nn.MSELoss(reduction='sum')
-        }
-
 
 
     def run(self):
@@ -79,9 +74,9 @@ class Benchmark:
 
             for idx, data in enumerate(self.validation_loader):
                 data = data.to(self.device)
-                pos = self.model(data)
+                output = self.model(data)
 
-                plot_comparison(data.pos, pos, data.edge_index,
+                plot_comparison(data, output, data.edge_index,
                                 config=self.config, 
                                 save_dir=os.path.join(self.opts['log_dir'], f"vis/plot_{idx}.jpg"))
 

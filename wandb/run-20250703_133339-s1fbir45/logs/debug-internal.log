@@ -1,0 +1,7 @@
+{"time":"2025-07-03T13:33:39.386741921-04:00","level":"INFO","msg":"stream: starting","core version":"0.19.11","symlink path":"/home/zayn/genexp/wandb/run-20250703_133339-s1fbir45/logs/debug-core.log"}
+{"time":"2025-07-03T13:33:39.566785645-04:00","level":"INFO","msg":"created new stream","id":"s1fbir45"}
+{"time":"2025-07-03T13:33:39.566853065-04:00","level":"INFO","msg":"stream: started","id":"s1fbir45"}
+{"time":"2025-07-03T13:33:39.566888125-04:00","level":"INFO","msg":"writer: Do: started","stream_id":"s1fbir45"}
+{"time":"2025-07-03T13:33:39.567208313-04:00","level":"INFO","msg":"handler: started","stream_id":"s1fbir45"}
+{"time":"2025-07-03T13:33:39.567248953-04:00","level":"INFO","msg":"sender: started","stream_id":"s1fbir45"}
+{"time":"2025-07-03T13:33:39.821179342-04:00","level":"INFO","msg":"Starting system monitor"}

@@ -1,0 +1,7 @@
+{"time":"2025-07-03T13:29:55.405364971-04:00","level":"INFO","msg":"stream: starting","core version":"0.19.11","symlink path":"/home/zayn/genexp/wandb/run-20250703_132955-s4lyk57s/logs/debug-core.log"}
+{"time":"2025-07-03T13:29:55.581421657-04:00","level":"INFO","msg":"created new stream","id":"s4lyk57s"}
+{"time":"2025-07-03T13:29:55.581493167-04:00","level":"INFO","msg":"stream: started","id":"s4lyk57s"}
+{"time":"2025-07-03T13:29:55.581561017-04:00","level":"INFO","msg":"writer: Do: started","stream_id":"s4lyk57s"}
+{"time":"2025-07-03T13:29:55.581717736-04:00","level":"INFO","msg":"sender: started","stream_id":"s4lyk57s"}
+{"time":"2025-07-03T13:29:55.581823525-04:00","level":"INFO","msg":"handler: started","stream_id":"s4lyk57s"}
+{"time":"2025-07-03T13:29:55.718156634-04:00","level":"INFO","msg":"Starting system monitor"}

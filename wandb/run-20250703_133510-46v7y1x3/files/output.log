@@ -1,0 +1,60 @@
+Start Training...
+[34m[1mwandb[0m: [33mWARNING[0m Saving files without folders. If you want to preserve subdirectories pass base_path to wandb.save, i.e. wandb.save("/mnt/folder/file.h5", base_path="/mnt")
+Epoch 0: Train Loss - {'Posloss_Train': 861.4930674917746} Val Loss - {'Posloss_Val': 517.3161472574869}
+Epoch 1: Train Loss - {'Posloss_Train': 465.02661163534896} Val Loss - {'Posloss_Val': 415.1880558268229}
+Epoch 2: Train Loss - {'Posloss_Train': 403.03644966279103} Val Loss - {'Posloss_Val': 378.40238505045573}
+Epoch 3: Train Loss - {'Posloss_Train': 382.29208281856256} Val Loss - {'Posloss_Val': 380.9916516113281}
+Epoch 4: Train Loss - {'Posloss_Train': 372.227668813411} Val Loss - {'Posloss_Val': 360.8507381184896}
+Epoch 5: Train Loss - {'Posloss_Train': 363.41154705278024} Val Loss - {'Posloss_Val': 354.91514099121093}
+Epoch 6: Train Loss - {'Posloss_Train': 357.2557352565279} Val Loss - {'Posloss_Val': 346.92028442382815}
+Epoch 7: Train Loss - {'Posloss_Train': 349.35264986793464} Val Loss - {'Posloss_Val': 340.7607696533203}
+Epoch 8: Train Loss - {'Posloss_Train': 341.9805240503093} Val Loss - {'Posloss_Val': 335.9937296549479}
+Epoch 9: Train Loss - {'Posloss_Train': 333.0838576963284} Val Loss - {'Posloss_Val': 323.3224812825521}
+Epoch 10: Train Loss - {'Posloss_Train': 322.59575647955774} Val Loss - {'Posloss_Val': 308.69598409016925}
+Epoch 11: Train Loss - {'Posloss_Train': 313.35194499380634} Val Loss - {'Posloss_Val': 304.7357002766927}
+Epoch 12: Train Loss - {'Posloss_Train': 307.40680290068553} Val Loss - {'Posloss_Val': 297.5095275878906}
+Epoch 13: Train Loss - {'Posloss_Train': 296.3646856218376} Val Loss - {'Posloss_Val': 302.40909708658853}
+Epoch 14: Train Loss - {'Posloss_Train': 288.17114790334} Val Loss - {'Posloss_Val': 292.0279160563151}
+Epoch 15: Train Loss - {'Posloss_Train': 281.27588110802157} Val Loss - {'Posloss_Val': 266.8944647216797}
+Epoch 16: Train Loss - {'Posloss_Train': 273.82365120497326} Val Loss - {'Posloss_Val': 262.47618876139325}
+Epoch 17: Train Loss - {'Posloss_Train': 269.4278554724367} Val Loss - {'Posloss_Val': 264.4741835530599}
+Epoch 18: Train Loss - {'Posloss_Train': 264.1758717786546} Val Loss - {'Posloss_Val': 255.6332794189453}
+Epoch 19: Train Loss - {'Posloss_Train': 259.6628630977349} Val Loss - {'Posloss_Val': 248.08583943684897}
+Epoch 20: Train Loss - {'Posloss_Train': 259.16587035927995} Val Loss - {'Posloss_Val': 243.27697916666668}
+Epoch 21: Train Loss - {'Posloss_Train': 255.07052888806234} Val Loss - {'Posloss_Val': 250.5711464436849}
+Epoch 22: Train Loss - {'Posloss_Train': 249.39009340017435} Val Loss - {'Posloss_Val': 236.29862263997396}
+Epoch 23: Train Loss - {'Posloss_Train': 247.07298913738072} Val Loss - {'Posloss_Val': 233.99349100748697}
+Epoch 24: Train Loss - {'Posloss_Train': 245.43331310093004} Val Loss - {'Posloss_Val': 237.40972615559895}
+Epoch 25: Train Loss - {'Posloss_Train': 240.46139382996014} Val Loss - {'Posloss_Val': 237.03674662272135}
+Epoch 26: Train Loss - {'Posloss_Train': 241.18969132596214} Val Loss - {'Posloss_Val': 239.93004374186197}
+Epoch 27: Train Loss - {'Posloss_Train': 236.98236094225172} Val Loss - {'Posloss_Val': 225.65274149576823}
+Epoch 28: Train Loss - {'Posloss_Train': 231.5565461024342} Val Loss - {'Posloss_Val': 233.25641092936198}
+Epoch 29: Train Loss - {'Posloss_Train': 232.26631087744795} Val Loss - {'Posloss_Val': 220.78660166422526}
+Epoch 30: Train Loss - {'Posloss_Train': 227.42697522464215} Val Loss - {'Posloss_Val': 243.15354919433594}
+Traceback (most recent call last):
+  File "/home/zayn/genexp/train.py", line 171, in <module>
+    runner.train()
+  File "/home/zayn/genexp/train.py", line 95, in train
+    t_loss = self.train_step()
+  File "/home/zayn/genexp/train.py", line 121, in train_step
+    loss.backward()
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/_tensor.py", line 521, in backward
+    torch.autograd.backward(
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/autograd/graph.py", line 768, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "/home/zayn/genexp/train.py", line 171, in <module>
+    runner.train()
+  File "/home/zayn/genexp/train.py", line 95, in train
+  File "/home/zayn/genexp/train.py", line 121, in train_step
+    loss.backward()
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/_tensor.py", line 521, in backward
+    torch.autograd.backward(
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/home/zayn/.local/lib/python3.10/site-packages/torch/autograd/graph.py", line 768, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+KeyboardInterrupt

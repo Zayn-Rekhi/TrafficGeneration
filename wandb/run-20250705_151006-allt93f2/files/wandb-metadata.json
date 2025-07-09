@@ -1,0 +1,85 @@
+{
+  "os":  "Linux-5.15.0-133-generic-x86_64-with-glibc2.35",
+  "python":  "CPython 3.13.2",
+  "startedAt":  "2025-07-05T19:10:06.536029Z",
+  "program":  "/home/zayn/genexp/train.py",
+  "codePath":  "train.py",
+  "codePathLocal":  "train.py",
+  "email":  "rekhi.zayn@gmail.com",
+  "root":  "/home/zayn/genexp",
+  "host":  "hcss-zhi",
+  "executable":  "/home/zayn/miniconda3/bin/python3",
+  "cpu_count":  32,
+  "cpu_count_logical":  32,
+  "gpu":  "NVIDIA RTX A5500",
+  "gpu_count":  8,
+  "disk":  {
+    "/":  {
+      "total":  "15118144241664",
+      "used":  "13491248754688"
+    }
+  },
+  "memory":  {
+    "total":  "540893650944"
+  },
+  "gpu_nvidia":  [
+    {
+      "name":  "NVIDIA RTX A5500",
+      "memoryTotal":  "25757220864",
+      "cudaCores":  10240,
+      "architecture":  "Ampere",
+      "uuid":  "GPU-43c111f6-8ce6-0a23-500f-72412848af0b"
+    },
+    {
+      "name":  "NVIDIA RTX A5500",
+      "memoryTotal":  "25757220864",
+      "cudaCores":  10240,
+      "architecture":  "Ampere",
+      "uuid":  "GPU-3f97671c-be4e-0ded-d6a2-39d432aaf788"
+    },
+    {
+      "name":  "NVIDIA RTX A5500",
+      "memoryTotal":  "25757220864",
+      "cudaCores":  10240,
+      "architecture":  "Ampere",
+      "uuid":  "GPU-a3385f25-868d-929f-f39e-ef35792ef13b"
+    },
+    {
+      "name":  "NVIDIA RTX A5500",
+      "memoryTotal":  "25757220864",
+      "cudaCores":  10240,
+      "architecture":  "Ampere",
+      "uuid":  "GPU-6729df51-9d5a-55cd-66c3-2cfec86e07ba"
+    },
+    {
+      "name":  "NVIDIA RTX A5500",
+      "memoryTotal":  "25757220864",
+      "cudaCores":  10240,
+      "architecture":  "Ampere",
+      "uuid":  "GPU-d4d90db2-cdc0-c7b0-70c9-9e89da9c7ee9"
+    },
+    {
+      "name":  "NVIDIA RTX A5500",
+      "memoryTotal":  "25757220864",
+      "cudaCores":  10240,
+      "architecture":  "Ampere",
+      "uuid":  "GPU-46a626df-a0d1-e478-b414-6db2d0311369"
+    },
+    {
+      "name":  "NVIDIA RTX A5500",
+      "memoryTotal":  "25757220864",
+      "cudaCores":  10240,
+      "architecture":  "Ampere",
+      "uuid":  "GPU-a04527e9-1cf9-8d8a-7bc2-d841b68574a5"
+    },
+    {
+      "name":  "NVIDIA RTX A5500",
+      "memoryTotal":  "25757220864",
+      "cudaCores":  10240,
+      "architecture":  "Ampere",
+      "uuid":  "GPU-ac5e3264-556c-3402-6429-e577e99b4794"
+    }
+  ],
+  "cudaVersion":  "12.2",
+  "writerId":  "z35jovn4ghcsrmxaxs1ozn6t266oyzpz"
+}

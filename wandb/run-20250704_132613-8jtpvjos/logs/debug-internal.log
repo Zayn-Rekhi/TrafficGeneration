@@ -1,0 +1,16 @@
+{"time":"2025-07-04T13:26:13.85517691-04:00","level":"INFO","msg":"stream: starting","core version":"0.19.11","symlink path":"/home/zayn/genexp/wandb/run-20250704_132613-8jtpvjos/logs/debug-core.log"}
+{"time":"2025-07-04T13:26:14.032796882-04:00","level":"INFO","msg":"created new stream","id":"8jtpvjos"}
+{"time":"2025-07-04T13:26:14.032854151-04:00","level":"INFO","msg":"stream: started","id":"8jtpvjos"}
+{"time":"2025-07-04T13:26:14.032901541-04:00","level":"INFO","msg":"handler: started","stream_id":"8jtpvjos"}
+{"time":"2025-07-04T13:26:14.03303493-04:00","level":"INFO","msg":"sender: started","stream_id":"8jtpvjos"}
+{"time":"2025-07-04T13:26:14.03306368-04:00","level":"INFO","msg":"writer: Do: started","stream_id":"8jtpvjos"}
+{"time":"2025-07-04T13:26:14.169458697-04:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-07-04T14:23:49.759987392-04:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-07-04T14:23:49.760076151-04:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-07-04T14:23:50.763942503-04:00","level":"INFO","msg":"handler: operation stats","stats":{"operations":[{"desc":"uploading logs/model_149.pth","runtime_seconds":0.924867485,"progress":"6.9MB/9.8MB"},{"desc":"uploading logs/model_29.pth","runtime_seconds":0.514897225,"progress":"80.0KB/9.8MB"},{"desc":"uploading logs/model_117.pth","runtime_seconds":0.514878305,"progress":"80.0KB/9.8MB"},{"desc":"uploading logs/model_61.pth","runtime_seconds":0.514871425,"progress":"448.0KB/9.8MB"},{"desc":"uploading logs/model_119.pth","runtime_seconds":0.514864565,"progress":"48.0KB/9.8MB"},{"desc":"uploading logs/model_120.pth","runtime_seconds":0.514860415,"progress":"112.0KB/9.8MB"},{"desc":"uploading logs/model_89.pth","runtime_seconds":0.514858155,"progress":"96.0KB/9.8MB"},{"desc":"uploading logs/model_13.pth","runtime_seconds":0.514843835,"progress":"64.0KB/9.8MB"},{"desc":"uploading logs/model_30.pth","runtime_seconds":0.514841565,"progress":"80.0KB/9.8MB"},{"desc":"uploading logs/model_102.pth","runtime_seconds":0.514835175,"progress":"80.0KB/9.8MB"}],"total_operations":150}}
+{"time":"2025-07-04T14:24:31.864596077-04:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-07-04T14:24:31.947382145-04:00","level":"INFO","msg":"stream: closing","id":"8jtpvjos"}
+{"time":"2025-07-04T14:24:31.947402285-04:00","level":"INFO","msg":"handler: closed","stream_id":"8jtpvjos"}
+{"time":"2025-07-04T14:24:31.947429955-04:00","level":"INFO","msg":"writer: Close: closed","stream_id":"8jtpvjos"}
+{"time":"2025-07-04T14:24:31.947598614-04:00","level":"INFO","msg":"sender: closed","stream_id":"8jtpvjos"}
+{"time":"2025-07-04T14:24:31.947616204-04:00","level":"INFO","msg":"stream: closed","id":"8jtpvjos"}

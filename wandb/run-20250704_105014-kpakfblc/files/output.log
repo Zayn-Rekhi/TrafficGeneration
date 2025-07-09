@@ -1,0 +1,50 @@
+Start Training...
+Epoch 0: {'Posloss_Train': 856.5669449159763, 'Posloss_Val': 535.8903739420573}
+Epoch 1: {'Posloss_Train': 481.42988627388974, 'Posloss_Val': 434.4337107340495}
+Traceback (most recent call last):
+  File "/home/zayn/genexp/train.py", line 161, in <module>
+    runner.train()
+    ~~~~~~~~~~~~^^
+  File "/home/zayn/genexp/train.py", line 98, in train
+    self.train_step(metrics_recorder)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/genexp/train.py", line 115, in train_step
+    for _, data in enumerate(self.train_loader):
+                   ~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/utils/data/dataloader.py", line 733, in __next__
+    data = self._next_data()
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/utils/data/dataloader.py", line 1491, in _next_data
+    idx, data = self._get_data()
+                ~~~~~~~~~~~~~~^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/utils/data/dataloader.py", line 1453, in _get_data
+    success, data = self._try_get_data()
+                    ~~~~~~~~~~~~~~~~~~^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/utils/data/dataloader.py", line 1284, in _try_get_data
+    data = self._data_queue.get(timeout=timeout)
+  File "/home/zayn/miniconda3/lib/python3.13/multiprocessing/queues.py", line 120, in get
+    return _ForkingPickler.loads(res)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/multiprocessing/reductions.py", line 541, in rebuild_storage_fd
+    fd = df.detach()
+  File "/home/zayn/miniconda3/lib/python3.13/multiprocessing/resource_sharer.py", line 57, in detach
+    with _resource_sharer.get_connection(self._id) as conn:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/multiprocessing/resource_sharer.py", line 86, in get_connection
+    c = Client(address, authkey=process.current_process().authkey)
+  File "/home/zayn/miniconda3/lib/python3.13/multiprocessing/connection.py", line 519, in Client
+    c = SocketClient(address)
+  File "/home/zayn/miniconda3/lib/python3.13/multiprocessing/connection.py", line 647, in SocketClient
+    s.connect(address)
+    ~~~~~~~~~^^^^^^^^^
+KeyboardInterrupt
+Exception ignored in atexit callback <function _start_and_connect_service.<locals>.teardown_atexit at 0x7f27516940e0>:
+Traceback (most recent call last):
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/wandb/sdk/lib/service/service_connection.py", line 54, in teardown_atexit
+    conn.teardown(hooks.exit_code)
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/wandb/sdk/lib/service/service_connection.py", line 182, in teardown
+    self._router.join()
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/wandb/sdk/interface/router.py", line 75, in join
+    self._thread.join()
+  File "/home/zayn/miniconda3/lib/python3.13/threading.py", line 1092, in join
+    self._handle.join(timeout)
+KeyboardInterrupt:

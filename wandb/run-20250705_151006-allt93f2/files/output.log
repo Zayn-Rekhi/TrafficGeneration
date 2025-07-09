@@ -1,0 +1,49 @@
+Start Training...
+Epoch 0: {'Posloss_Train': 551.4263686109709, 'Actloss_Train': 1279.9501518915163, 'Direcloss_Train': 598.8926174496644, 'Laneloss_Train': 2490.4431389930264, 'Loss_Train': 9705.409584403838, 'Posloss_Val': 193.18065317789714, 'Actloss_Val': 1243.2146110026042, 'Direcloss_Val': 600.0, 'Laneloss_Val': 2425.431884765625, 'Loss_Val': 4461.827132161458}
+Epoch 1: {'Posloss_Train': 176.40414510637322, 'Actloss_Train': 1251.577304507262, 'Direcloss_Train': 598.8926174496644, 'Laneloss_Train': 2424.2885348940854, 'Loss_Train': 8030.4522205327185, 'Posloss_Val': 157.03678558349608, 'Actloss_Val': 1243.211953125, 'Direcloss_Val': 600.0, 'Laneloss_Val': 2392.5883626302084, 'Loss_Val': 4392.837135416667}
+Epoch 2: {'Posloss_Train': 158.2325283280955, 'Actloss_Train': 1251.5768326112889, 'Direcloss_Train': 598.8926174496644, 'Laneloss_Train': 2398.8958060245386, 'Loss_Train': 7906.979580667995, 'Posloss_Val': 146.79504313151043, 'Actloss_Val': 1243.212049967448, 'Direcloss_Val': 600.0, 'Laneloss_Val': 2375.8808902994792, 'Loss_Val': 4365.887978515625}
+Epoch 3: {'Posloss_Train': 149.08961340885034, 'Actloss_Train': 1251.5765085924393, 'Direcloss_Train': 598.8926174496644, 'Laneloss_Train': 2387.5214819172083, 'Loss_Train': 7847.658789717911, 'Posloss_Val': 143.37334350585937, 'Actloss_Val': 1243.2116186523438, 'Direcloss_Val': 600.0, 'Laneloss_Val': 2367.517869466146, 'Loss_Val': 4354.102819010417}
+Epoch 4: {'Posloss_Train': 144.69096185056955, 'Actloss_Train': 1251.5765446400483, 'Direcloss_Train': 598.8926174496644, 'Laneloss_Train': 2381.718167503408, 'Loss_Train': 7818.4576063732175, 'Posloss_Val': 135.08997131347655, 'Actloss_Val': 1243.211630859375, 'Direcloss_Val': 600.0, 'Laneloss_Val': 2363.0642903645835, 'Loss_Val': 4341.365875651041}
+Epoch 5: {'Posloss_Train': 138.5664546889747, 'Actloss_Train': 1251.5761898988046, 'Direcloss_Train': 598.8926174496644, 'Laneloss_Train': 2377.490031197567, 'Loss_Train': 7785.50279532823, 'Posloss_Val': 130.2730494181315, 'Actloss_Val': 1243.2115584309895, 'Direcloss_Val': 600.0, 'Laneloss_Val': 2360.0979361979166, 'Loss_Val': 4333.582542317708}
+Epoch 6: {'Posloss_Train': 133.9031640635241, 'Actloss_Train': 1251.576178019479, 'Direcloss_Train': 598.8926174496644, 'Laneloss_Train': 2374.7217489152945, 'Loss_Train': 7761.3130456297185, 'Posloss_Val': 129.23923482259116, 'Actloss_Val': 1243.2113435872395, 'Direcloss_Val': 600.0, 'Laneloss_Val': 2357.644375, 'Loss_Val': 4330.094928385417}
+Traceback (most recent call last):
+  File "/home/zayn/genexp/train.py", line 177, in <module>
+    runner.train()
+    ~~~~~~~~~~~~^^
+  File "/home/zayn/genexp/train.py", line 96, in train
+    self.train_step(metrics_recorder)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/genexp/train.py", line 117, in train_step
+    pos, acttype, direction, laneidx = self.model(data)
+                                       ~~~~~~~~~~^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/genexp/model.py", line 197, in forward
+    posx, posy, acttype, direc, laneidx = self.decode(z, data.edge_index)
+                                          ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/genexp/model.py", line 176, in decode
+    posx = F.relu(self.d_posx_0(d_embd_3))
+                  ~~~~~~~~~~~~~^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/linear.py", line 125, in forward
+    return F.linear(input, self.weight, self.bias)
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/fx/traceback.py", line 189, in format_stack
+    return traceback.format_list(traceback.extract_stack()[:-1])
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/traceback.py", line 45, in format_list
+    return StackSummary.from_list(extracted_list).format()
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/zayn/miniconda3/lib/python3.13/traceback.py", line 749, in format
+    formatted_frame = self.format_frame_summary(frame_summary, colorize=colorize)
+  File "/home/zayn/miniconda3/lib/python3.13/traceback.py", line 514, in format_frame_summary
+    def format_frame_summary(self, frame_summary, **kwargs):
+
+KeyboardInterrupt

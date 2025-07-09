@@ -1,0 +1,53 @@
+Start Training...
+Epoch 0: {'Posloss': 860.6302104060196}
+Traceback (most recent call last):
+  File "/home/zayn/genexp/train.py", line 165, in <module>
+    runner.train()
+    ~~~~~~~~~~~~^^
+  File "/home/zayn/genexp/train.py", line 99, in train
+    self.train_step(metrics_recorder)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/genexp/train.py", line 118, in train_step
+    pos = self.model(data)
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/genexp/model.py", line 172, in forward
+    posx, posy = self.decode(z, data.edge_index)
+                 ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/genexp/model.py", line 156, in decode
+    d_embd_1 = F.relu(self.d_conv1(d_embd_0, edge_index))
+                      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch_geometric/nn/conv/gcn_conv.py", line 241, in forward
+    edge_index, edge_weight = gcn_norm(  # yapf: disable
+                              ~~~~~~~~^^^^^^^^^^^^^^^^^^
+        edge_index, edge_weight, x.size(self.node_dim),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.improved, self.add_self_loops, self.flow, x.dtype)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch_geometric/nn/conv/gcn_conv.py", line 99, in gcn_norm
+    edge_index, edge_weight = add_remaining_self_loops(
+                              ~~~~~~~~~~~~~~~~~~~~~~~~^
+        edge_index, edge_weight, fill_value, num_nodes)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch_geometric/utils/loop.py", line 634, in add_remaining_self_loops
+    loop_index = torch.arange(0, N, device=device).view(1, -1).repeat(2, 1)
+KeyboardInterrupt
+Exception ignored in atexit callback <function _start_and_connect_service.<locals>.teardown_atexit at 0x7f3a8f5b80e0>:
+Traceback (most recent call last):
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/wandb/sdk/lib/service/service_connection.py", line 54, in teardown_atexit
+    conn.teardown(hooks.exit_code)
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/wandb/sdk/lib/service/service_connection.py", line 182, in teardown
+    self._router.join()
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/wandb/sdk/interface/router.py", line 75, in join
+    self._thread.join()
+  File "/home/zayn/miniconda3/lib/python3.13/threading.py", line 1092, in join
+    self._handle.join(timeout)
+KeyboardInterrupt:

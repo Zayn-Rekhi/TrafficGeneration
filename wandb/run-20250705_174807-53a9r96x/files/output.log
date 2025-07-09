@@ -1,0 +1,31 @@
+Start Training...
+Traceback (most recent call last):
+  File "/home/zayn/genexp/train.py", line 183, in <module>
+    runner.train()
+    ~~~~~~~~~~~~^^
+  File "/home/zayn/genexp/train.py", line 96, in train
+    self.train_step(metrics_recorder)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/genexp/train.py", line 118, in train_step
+    pos, acttype, direction, laneidx, log_var, mu = self.model(data)
+                                                    ~~~~~~~~~~^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/genexp/model.py", line 197, in forward
+    posx, posy, acttype, direc, laneidx = self.decode(z, data.edge_index)
+                                          ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/genexp/model.py", line 182, in decode
+    acttype = F.relu(self.d_act_type_0(d_embd_3))
+                     ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/linear.py", line 125, in forward
+    return F.linear(input, self.weight, self.bias)
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: mat1 and mat2 shapes cannot be multiplied (1200x3072 and 256x256)

@@ -99,10 +99,10 @@ class Runner:
             metrics = metrics_recorder.average()
             self.logger.log_metrics(metrics, step=epoch)
             
-            # if "Posloss_Val" in metrics_recorder.update_best():
-            #     self.logger.save_model(self.model, f"best_pos_loss_model_{epoch}.pth")
-            # else:
-            #     self.logger.save_model(self.model, f"model_{epoch}.pth")
+            if "Posloss_Val" in metrics_recorder.update_best():
+                self.logger.save_model(self.model, f"best_pos_loss_model_{epoch}.pth")
+            else:
+                self.logger.save_model(self.model, f"model_{epoch}.pth")
 
             print(f"Epoch {epoch}: {metrics}")
 
@@ -123,7 +123,13 @@ class Runner:
             lane_loss = self.loss_dict['Laneloss'](laneidx, data.lane_index)
             kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
 
-            loss = 4 * pos_loss + 1.5 * act_loss + 1 * direc_loss + 2 * lane_loss + kld_loss
+            loss = (
+                self.opts['pos_weight'] * pos_loss + 
+                self.opts['actor_weight'] * act_loss + 
+                self.opts['direction_weight'] * direc_loss + 
+                self.opts['lane_weight'] * lane_loss + 
+                self.opts['kld_weight'] * kld_loss
+            )
 
             loss.backward()
 
@@ -151,7 +157,6 @@ class Runner:
                 data = data.to(self.device)
 
                 pos, acttype, direction, laneidx, log_var, mu = self.model(data)
-
                 
                 pos_loss = self.loss_dict['Posloss'](pos, data.pos)
                 act_loss = self.loss_dict['Actloss'](acttype, data.actor_type)
@@ -159,9 +164,14 @@ class Runner:
                 lane_loss = self.loss_dict['Laneloss'](laneidx, data.lane_index)
                 kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
 
+                loss = (
+                    self.opts['pos_weight'] * pos_loss + 
+                    self.opts['actor_weight'] * act_loss + 
+                    self.opts['direction_weight'] * direc_loss + 
+                    self.opts['lane_weight'] * lane_loss + 
+                    self.opts['kld_weight'] * kld_loss
+                )
 
-                loss = pos_loss + act_loss + direc_loss + lane_loss + kld_loss
- 
                 metrics_recorder.record(
                     {
                         "Posloss_Val": pos_loss.item(),

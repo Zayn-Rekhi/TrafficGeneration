@@ -1,0 +1,174 @@
+_wandb:
+    value:
+        cli_version: 0.21.0
+        e:
+            xqv14fsnm81q5luop5xm8jb0hd6tagzp:
+                codePath: train.py
+                codePathLocal: train.py
+                cpu_count: 32
+                cpu_count_logical: 32
+                cudaVersion: "12.2"
+                disk:
+                    /:
+                        total: "15118144241664"
+                        used: "13491248828416"
+                email: rekhi.zayn@gmail.com
+                executable: /home/zayn/miniconda3/bin/python3
+                gpu: NVIDIA RTX A5500
+                gpu_count: 8
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 10240
+                      memoryTotal: "25757220864"
+                      name: NVIDIA RTX A5500
+                      uuid: GPU-43c111f6-8ce6-0a23-500f-72412848af0b
+                    - architecture: Ampere
+                      cudaCores: 10240
+                      memoryTotal: "25757220864"
+                      name: NVIDIA RTX A5500
+                      uuid: GPU-3f97671c-be4e-0ded-d6a2-39d432aaf788
+                    - architecture: Ampere
+                      cudaCores: 10240
+                      memoryTotal: "25757220864"
+                      name: NVIDIA RTX A5500
+                      uuid: GPU-a3385f25-868d-929f-f39e-ef35792ef13b
+                    - architecture: Ampere
+                      cudaCores: 10240
+                      memoryTotal: "25757220864"
+                      name: NVIDIA RTX A5500
+                      uuid: GPU-6729df51-9d5a-55cd-66c3-2cfec86e07ba
+                    - architecture: Ampere
+                      cudaCores: 10240
+                      memoryTotal: "25757220864"
+                      name: NVIDIA RTX A5500
+                      uuid: GPU-d4d90db2-cdc0-c7b0-70c9-9e89da9c7ee9
+                    - architecture: Ampere
+                      cudaCores: 10240
+                      memoryTotal: "25757220864"
+                      name: NVIDIA RTX A5500
+                      uuid: GPU-46a626df-a0d1-e478-b414-6db2d0311369
+                    - architecture: Ampere
+                      cudaCores: 10240
+                      memoryTotal: "25757220864"
+                      name: NVIDIA RTX A5500
+                      uuid: GPU-a04527e9-1cf9-8d8a-7bc2-d841b68574a5
+                    - architecture: Ampere
+                      cudaCores: 10240
+                      memoryTotal: "25757220864"
+                      name: NVIDIA RTX A5500
+                      uuid: GPU-ac5e3264-556c-3402-6429-e577e99b4794
+                host: hcss-zhi
+                memory:
+                    total: "540893650944"
+                os: Linux-5.15.0-133-generic-x86_64-with-glibc2.35
+                program: /home/zayn/genexp/train.py
+                python: CPython 3.13.2
+                root: /home/zayn/genexp
+                startedAt: "2025-07-05T19:29:06.175682Z"
+                writerId: xqv14fsnm81q5luop5xm8jb0hd6tagzp
+        m: []
+        python_version: 3.13.2
+        t:
+            "1":
+                - 1
+                - 77
+            "2":
+                - 1
+                - 77
+            "3":
+                - 2
+                - 13
+                - 16
+                - 61
+            "4": 3.13.2
+            "5": 0.21.0
+            "12": 0.21.0
+            "13": linux-x86_64
+aggr:
+    value: Max
+attention_generator:
+    value: false
+attten_net:
+    value:
+        - TransformerConv
+        - GATConv
+        - SAGEConv
+batch_size:
+    value: 200
+bench_batch_size:
+    value: 1
+bench_config_path:
+    value: /home/zayn/dataset_vis_traffic/highD-dataset-v1.0/distributions/config.json
+bench_path:
+    value: /home/zayn/genexp/logs/model_149.pth
+block_latent_dim:
+    value: 20
+clean_cache:
+    value: false
+convlayer:
+    value: GATConv
+dataset_path:
+    value: /home/zayn/dataset_processed_traffic/highD-dataset-v1.0
+exist_weight:
+    value: 3
+extsum_weight:
+    value: 2
+generator:
+    value: true
+gpu_ids:
+    value:
+        - 0
+head_num:
+    value: 12
+height_weight:
+    value: 4
+import_name:
+    value: latest
+iou_weight:
+    value: 1
+is_multigpu:
+    value: false
+kld_weight:
+    value: 0.5
+latent_dim:
+    value: 512
+log_dir:
+    value: /home/zayn/genexp/logs
+lr:
+    value: 0.0001
+n_ft_dim:
+    value: 256
+pos_weight:
+    value: 4
+resume:
+    value: false
+resume_dir:
+    value: Your resume folder
+resume_epoch:
+    value: 400
+save_epoch:
+    value: 50
+save_freq:
+    value: 5
+save_record:
+    value: false
+shape_weight:
+    value: 0.05
+size_weight:
+    value: 4
+start_epoch:
+    value: 0
+template_height:
+    value: 4
+template_width:
+    value: 30
+total_epochs:
+    value: 150
+val_ratio:
+    value: 0.2
+wandb_entity:
+    value: TrafficGeneration
+wandb_name:
+    value: Train
+wandb_project:
+    value: TrafficVAE

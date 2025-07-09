@@ -6,6 +6,8 @@ import io
 from PIL import Image
 
 import matplotlib.pyplot as plt
+from matplotlib.patches import FancyArrow
+from matplotlib.cm import get_cmap
 
 
 def read_train_yaml(checkpoint_name, filename = "train.yaml"):
@@ -49,46 +51,66 @@ def graph2vector_processed(g):
     
     return node_pos, actor_type, lane_index, direction, edge_list, node_idx
 
+def get_class_value(x):
+    return np.argmax(x, axis=1)
+
 
 def plot_comparison(target, output, edge_index, config, save_dir=None):
-    target = target.detach().cpu().numpy()
-    output = output.detach().cpu().numpy()
+    orig_pos, orig_acttype, orig_direction, orig_laneidx = target.pos, target.actor_type, target.direction, target.lane_index
+    pos, acttype, direction, laneidx, _, _ = output
 
-    target[:, 0] = (target[:, 0] * config['x'][1]) + config['x'][0]
-    target[:, 1] = (target[:, 1] * config['y'][1]) + config['y'][0]
+    orig_pos = orig_pos.detach().cpu().numpy()
+    pos = pos.detach().cpu().numpy()
+    
+    orig_acttype = get_class_value(orig_acttype.detach().cpu().numpy())
+    orig_direction = get_class_value(orig_direction.detach().cpu().numpy())
+    orig_laneidx = get_class_value(orig_laneidx.detach().cpu().numpy())
 
-    output[:, 0] = (output[:, 0] * config['x'][1]) + config['x'][0]
-    output[:, 1] = (output[:, 1] * config['y'][1]) + config['y'][0]
+    acttype = get_class_value(acttype.detach().cpu().numpy())
+    direction = get_class_value(direction.detach().cpu().numpy())
+    laneidx = get_class_value(laneidx.detach().cpu().numpy())
+
+    # De-normalize positions
+    orig_pos[:, 0] = (orig_pos[:, 0] * config['x'][1]) + config['x'][0]
+    orig_pos[:, 1] = (orig_pos[:, 1] * config['y'][1]) + config['y'][0]
+    pos[:, 0] = (pos[:, 0] * config['x'][1]) + config['x'][0]
+    pos[:, 1] = (pos[:, 1] * config['y'][1]) + config['y'][0]
 
     edge_index = edge_index.detach().cpu().numpy()
 
-    plt.figure(figsize=(10, 5))
+    def draw(ax, pos, edge_index, actor_type, direction, lane_index, title, cmap):
+        # Draw edges
+        for i, j in edge_index.T:
+            x = [pos[i, 0], pos[j, 0]]
+            y = [pos[i, 1], pos[j, 1]]
+            ax.plot(x, y, color='lightgray', linewidth=0.5, zorder=1)
+
+        # Marker shapes for 5 actor types
+        marker_map = {0: 'o', 1: 's', 2: '^', 3: 'D', 4: 'P'}
+
+        for i in range(len(pos)):
+            marker = marker_map.get(actor_type[i], 'x')
+            color = cmap(lane_index[i] % 10 / 10)  # normalize for tab10
+
+            ax.scatter(pos[i, 0], pos[i, 1], marker=marker, color=color, edgecolors='k', s=50, zorder=2)
+            ax.arrow(pos[i, 0], pos[i, 1], 3 if direction[i] == 1 else -3, 0, head_width=1, head_length=1)
+
+            
+        ax.set_title(title)
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.axis('equal')
+        ax.grid(True, linestyle='--', alpha=0.5)
+
+    cmap = get_cmap('tab10')  # For lane_index
+
+    plt.figure(figsize=(14, 6))
 
     ax1 = plt.subplot(1, 2, 1)
-    for i, j in edge_index.T:
-        x = [target[i, 0], target[j, 0]]
-        y = [target[i, 1], target[j, 1]]
-        ax1.plot(x, y, color='lightgray', linewidth=0.5, zorder=1)
-
-    ax1.scatter(target[:, 0], target[:, 1], color='royalblue', label='Target', edgecolors='k', zorder=2)
-    ax1.set_title('Ground Truth')
-    ax1.set_xlabel('X')
-    ax1.set_ylabel('Y')
-    ax1.axis('equal')
-    ax1.grid(True, linestyle='--', alpha=0.5)
+    draw(ax1, orig_pos, edge_index, orig_acttype, orig_direction, orig_laneidx, 'Ground Truth', cmap)
 
     ax2 = plt.subplot(1, 2, 2)
-    for i, j in edge_index.T:
-        x = [output[i, 0], output[j, 0]]
-        y = [output[i, 1], output[j, 1]]
-        ax2.plot(x, y, color='lightgray', linewidth=0.5, zorder=1)
-
-    ax2.scatter(output[:, 0], output[:, 1], color='crimson', label='Output', edgecolors='k', zorder=2)
-    ax2.set_title('Model Prediction')
-    ax2.set_xlabel('X')
-    ax2.set_ylabel('Y')
-    ax2.axis('equal')
-    ax2.grid(True, linestyle='--', alpha=0.5)
+    draw(ax2, pos, edge_index, acttype, direction, laneidx, 'Model Prediction', cmap)
 
     plt.tight_layout()
 

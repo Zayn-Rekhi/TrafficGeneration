@@ -1,0 +1,63 @@
+Start Training...
+Epoch 0: {'Posloss_Train': 781.5355624000498, 'Actloss_Train': 1280.4860749724728, 'Direcloss_Train': 598.8926174496644, 'Laneloss_Train': 2500.878120575975, 'KLDloss_Train': 206.43811659844928, 'Loss_Train': 10853.958312578648, 'Posloss_Val': 627.0261051432292, 'Actloss_Val': 1244.5425642903647, 'Direcloss_Val': 600.0, 'Laneloss_Val': 2448.766650390625, 'KLDloss_Val': 216.5458534749349, 'Loss_Val': 5136.881171875}
+Epoch 1: {'Posloss_Train': 592.8582969511915, 'Actloss_Train': 1252.5621116689388, 'Direcloss_Train': 598.8926174496644, 'Laneloss_Train': 2461.0369160287332, 'KLDloss_Train': 232.78041645024447, 'Loss_Train': 10004.023235961095, 'Posloss_Val': 544.6704170735677, 'Actloss_Val': 1243.863584798177, 'Direcloss_Val': 600.0, 'Laneloss_Val': 2440.787571614583, 'KLDloss_Val': 255.9631671142578, 'Loss_Val': 5085.284742838542}
+Epoch 2: {'Posloss_Train': 492.0040841326618, 'Actloss_Train': 1252.0224273476824, 'Direcloss_Train': 598.8926174496644, 'Laneloss_Train': 2452.9420002162856, 'KLDloss_Train': 290.5944697744894, 'Loss_Train': 9641.421036073825, 'Posloss_Val': 428.6417793782552, 'Actloss_Val': 1243.4982633463542, 'Direcloss_Val': 600.0, 'Laneloss_Val': 2433.680651041667, 'KLDloss_Val': 325.501982014974, 'Loss_Val': 5031.322620442708}
+Epoch 3: {'Posloss_Train': 372.7866962100035, 'Actloss_Train': 1251.796397778812, 'Direcloss_Train': 598.8926174496644, 'Laneloss_Train': 2447.770495523542, 'KLDloss_Train': 350.712256924418, 'Loss_Train': 9213.987196544673, 'Posloss_Val': 319.16383341471357, 'Actloss_Val': 1243.3800358072917, 'Direcloss_Val': 600.0, 'Laneloss_Val': 2430.520087890625, 'KLDloss_Val': 368.75736775716143, 'Loss_Val': 4961.821302083334}
+Epoch 4: {'Posloss_Train': 283.4716703683738, 'Actloss_Train': 1251.729674473705, 'Direcloss_Train': 598.8926174496644, 'Laneloss_Train': 2445.6748685900798, 'KLDloss_Train': 371.01838366617295, 'Loss_Train': 8872.741910588822, 'Posloss_Val': 255.12399780273438, 'Actloss_Val': 1243.355330403646, 'Direcloss_Val': 600.0, 'Laneloss_Val': 2429.225480143229, 'KLDloss_Val': 365.23363199869794, 'Loss_Val': 4892.938450520834}
+Epoch 5: {'Posloss_Train': 240.68451516580262, 'Actloss_Train': 1251.7128926731596, 'Direcloss_Train': 598.8926174496644, 'Laneloss_Train': 2444.2841985305686, 'KLDloss_Train': 353.03525722426855, 'Loss_Train': 8680.803673251363, 'Posloss_Val': 228.61838053385418, 'Actloss_Val': 1243.3401822916667, 'Direcloss_Val': 600.0, 'Laneloss_Val': 2428.0124609375, 'KLDloss_Val': 338.6023933919271, 'Loss_Val': 4838.573450520833}
+Traceback (most recent call last):
+  File "/home/zayn/genexp/train.py", line 183, in <module>
+    runner.train()
+    ~~~~~~~~~~~~^^
+  File "/home/zayn/genexp/train.py", line 96, in train
+    self.train_step(metrics_recorder)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/genexp/train.py", line 118, in train_step
+    pos, acttype, direction, laneidx, log_var, mu = self.model(data)
+                                                    ~~~~~~~~~~^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/genexp/model.py", line 195, in forward
+    mu, log_var = self.encode(data)
+                  ~~~~~~~~~~~^^^^^^
+  File "/home/zayn/genexp/model.py", line 161, in encode
+    log_var = self.fc_var(latent)
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/nn/modules/linear.py", line 125, in forward
+    return F.linear(input, self.weight, self.bias)
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/torch/fx/traceback.py", line 189, in format_stack
+    return traceback.format_list(traceback.extract_stack()[:-1])
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/traceback.py", line 45, in format_list
+    return StackSummary.from_list(extracted_list).format()
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/zayn/miniconda3/lib/python3.13/traceback.py", line 749, in format
+    formatted_frame = self.format_frame_summary(frame_summary, colorize=colorize)
+  File "/home/zayn/miniconda3/lib/python3.13/traceback.py", line 541, in format_frame_summary
+    if frame_summary._dedented_lines and frame_summary._dedented_lines.strip():
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/traceback.py", line 364, in _dedented_lines
+    self._lines_dedented = textwrap.dedent(self._lines)
+                           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/home/zayn/miniconda3/lib/python3.13/textwrap.py", line 436, in dedent
+    indents = _leading_whitespace_re.findall(text)
+KeyboardInterrupt
+Exception ignored in atexit callback <function _start_and_connect_service.<locals>.teardown_atexit at 0x7fe8f2c5fce0>:
+Traceback (most recent call last):
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/wandb/sdk/lib/service/service_connection.py", line 54, in teardown_atexit
+    conn.teardown(hooks.exit_code)
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/wandb/sdk/lib/service/service_connection.py", line 182, in teardown
+    self._router.join()
+  File "/home/zayn/miniconda3/lib/python3.13/site-packages/wandb/sdk/interface/router.py", line 75, in join
+    self._thread.join()
+  File "/home/zayn/miniconda3/lib/python3.13/threading.py", line 1092, in join
+    self._handle.join(timeout)
+KeyboardInterrupt:
