@@ -132,13 +132,9 @@ class MetricRecorder:
 
         avg_metrics = self.average()
         for name in self._metrics:
-            if name not in self._best_metrics:
+            if name not in self._best_metrics or avg_metrics[name] < self._best_metrics[name]:
                 self._best_metrics[name] = avg_metrics[name]
                 improved_metrics.append(name)
-            else:
-                if self.average()[name] > self._best_metrics[name]:
-                    self._best_metrics[name] = avg_metrics[name]
-                    improved_metrics.append(name)
 
         return improved_metrics
 

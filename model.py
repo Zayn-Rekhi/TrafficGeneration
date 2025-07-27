@@ -49,7 +49,6 @@ class BlockGenerator(torch.nn.Module):
         self.device = device
         self.latent_dim = opt['latent_dim']
         self.latent_ch = opt['n_ft_dim']
-        self.blockshape_latent_dim = opt['block_latent_dim']
         
 
         if opt['aggr'] == 'Mean':
@@ -77,12 +76,14 @@ class BlockGenerator(torch.nn.Module):
 
         
         self.pos_init = nn.Linear(2, int(self.latent_ch / 2))
+        self.size_init = nn.Linear(2, int(self.latent_ch / 2))
+        self.vel_init = nn.Linear(2, int(self.latent_ch / 2))
+        
         self.type_init = nn.Linear(6, int(self.latent_ch / 2))
         self.direction_init = nn.Linear(1, int(self.latent_ch / 2))
         self.lane_index_init = nn.Linear(10, int(self.latent_ch / 2))
 
-
-        self.e_conv1 = self.convlayer(int(self.latent_ch * 2), self.latent_ch)
+        self.e_conv1 = self.convlayer(int(self.latent_ch * 3), self.latent_ch)
         self.e_conv2 = self.convlayer(self.latent_ch, self.latent_ch)
         self.e_conv3 = self.convlayer(self.latent_ch, self.latent_ch)
 
@@ -92,16 +93,33 @@ class BlockGenerator(torch.nn.Module):
 
         self.d_ft_init = nn.Linear(self.latent_dim, self.latent_ch * 6)
 
-        self.aggregate = nn.Linear(self.latent_ch * 5, self.latent_dim)
+        # self.aggregate = nn.Linear(self.latent_ch * 6, self.latent_dim)
+        self.aggregate = self.convlayer(self.latent_ch, self.latent_ch)
+        print()
 
         self.fc_mu = nn.Linear(self.latent_dim, self.latent_dim)
         self.fc_var = nn.Linear(self.latent_dim, self.latent_dim)
 
+        # Positioning
         self.d_posx_0 = nn.Linear(self.latent_ch, self.latent_ch)
         self.d_posx_1 = nn.Linear(self.latent_ch, 1)
 
         self.d_posy_0 = nn.Linear(self.latent_ch, self.latent_ch)
         self.d_posy_1 = nn.Linear(self.latent_ch, 1)
+
+        # Size
+        self.d_sizex_0 = nn.Linear(self.latent_ch, self.latent_ch)
+        self.d_sizex_1 = nn.Linear(self.latent_ch, 1)
+
+        self.d_sizey_0 = nn.Linear(self.latent_ch, self.latent_ch)
+        self.d_sizey_1 = nn.Linear(self.latent_ch, 1)
+
+        # Velocity/Direction
+        self.d_velx_0 = nn.Linear(self.latent_ch, self.latent_ch)
+        self.d_velx_1 = nn.Linear(self.latent_ch, 1)
+
+        self.d_vely_0 = nn.Linear(self.latent_ch, self.latent_ch)
+        self.d_vely_1 = nn.Linear(self.latent_ch, 1)
 
         self.d_act_type_0 = nn.Linear(self.latent_ch, self.latent_ch)
         self.d_act_type_1 = nn.Linear(self.latent_ch, 6)
@@ -117,7 +135,6 @@ class BlockGenerator(torch.nn.Module):
                 m.weight.data = nn.init.xavier_uniform(m.weight.data, gain=nn.init.calculate_gain('relu'))
 
 
-
     def reparameterize(self, mu, logvar):
         """
         Reparameterization trick to sample from N(mu, var) from
@@ -130,19 +147,49 @@ class BlockGenerator(torch.nn.Module):
         eps = torch.randn_like(std)
         z = eps * std + mu
         return z
+    
+    def freeze_encoder(self):
+        self.pos_init.weight.requires_grad = False
+        self.pos_init.bias.requires_grad = False
 
+        self.size_init.weight.requires_grad = False
+        self.size_init.bias.requires_grad = False
+
+        self.vel_init.weight.requires_grad = False
+        self.vel_init.bias.requires_grad = False
+
+        self.type_init.weight.requires_grad = False
+        self.type_init.bias.requires_grad = False
+
+        self.direction_init.weight.requires_grad = False
+        self.direction_init.bias.requires_grad = False
+
+        self.lane_index_init.weight.requires_grad = False
+        self.lane_index_init.bias.requires_grad = False
+
+        for param in self.e_conv1.parameters():
+            param.requires_grad = False
+
+        for param in self.e_conv2.parameters():
+            param.requires_grad = False
+
+        for param in self.e_conv3.parameters():
+            param.requires_grad = False
 
     def encode(self, data):
-        pos_org, actor_type, lane_index, direction, edge_index = data.pos, data.actor_type, data.lane_index, data.direction, data.edge_index
+        pos_org, size_org, vel_org, actor_type, lane_index, direction, edge_index = data.pos, data.dimen, data.vel, data.actor_type, data.lane_index, data.direction, data.edge_index
 
         pos = F.relu(self.pos_init(pos_org))
-        a_type = F.relu(self.type_init(actor_type))
+        size = F.relu(self.size_init(size_org))
+        vel = F.relu(self.vel_init(vel_org))
+
+        act_type = F.relu(self.type_init(actor_type))
         lane_idx = F.relu(self.lane_index_init(lane_index))
         direc = F.relu(self.direction_init(direction))
 
         # n_embd_0 = torch.unsqueeze(pos, dim =0)
         # filler = torch.zeros((pos.shape[0], pos.shape[1] * 3)).to(self.device) # TODO: Replace Later
-        n_embd_0 = torch.cat((pos, a_type, lane_idx, direc), 1)       
+        n_embd_0 = torch.cat((pos, size, vel, act_type, lane_idx, direc), 1)       
 
         n_embd_1 = F.relu(self.e_conv1(n_embd_0, edge_index))
         n_embd_2 = F.relu(self.e_conv2(n_embd_1, edge_index))
@@ -179,6 +226,18 @@ class BlockGenerator(torch.nn.Module):
         posy = F.relu(self.d_posy_0(d_embd_3))
         posy = self.d_posy_1(posy)
 
+        sizex = F.relu(self.d_sizex_0(d_embd_3))
+        sizex = self.d_sizex_1(sizex)
+
+        sizey = F.relu(self.d_sizey_0(d_embd_3))
+        sizey = self.d_sizey_1(sizey)
+
+        velx = F.relu(self.d_velx_0(d_embd_3))
+        velx = self.d_velx_1(velx)
+
+        vely = F.relu(self.d_vely_0(d_embd_3))
+        vely = self.d_vely_1(vely)
+
         acttype = F.relu(self.d_act_type_0(d_embd_3))
         acttype = self.d_act_type_1(acttype)
 
@@ -188,15 +247,26 @@ class BlockGenerator(torch.nn.Module):
         laneidx = F.relu(self.d_lane_index_0(d_embd_3))
         laneidx = self.d_lane_index_1(laneidx)
 
-        return posx, posy, acttype, direc, laneidx
+        return posx, posy, sizex, sizey, velx, vely, acttype, direc, laneidx
 
 
     def forward(self, data):
         mu, log_var = self.encode(data)
         z = self.reparameterize(mu, log_var)
-        posx, posy, acttype, direc, laneidx = self.decode(z, data.edge_index)
+        posx, posy, sizex, sizey, velx, vely, acttype, direc, laneidx = self.decode(z, data.edge_index)
         pos = torch.cat((posx, posy), 1)
-        return pos, acttype, direc, laneidx, log_var, mu
+        size = torch.cat((sizex, sizey), 1)
+        vel = torch.cat((velx, vely), 1)
+
+        return pos, size, vel, acttype, direc, laneidx, log_var, mu
+    
+    def decoder_only(self, latent, edge_index):
+        posx, posy, sizex, sizey, velx, vely, acttype, direc, laneidx = self.decode(latent, edge_index)
+        pos = torch.cat((posx, posy), 1)
+        size = torch.cat((sizex, sizey), 1)
+        vel = torch.cat((velx, vely), 1)
+
+        return pos, size, vel, acttype, direc, laneidx
 
 
 #######################################################################################################################################################
@@ -205,7 +275,6 @@ class AttentionBlockGenerator(BlockGenerator):
         super(AttentionBlockGenerator, self).__init__(opt, device)
 
         self.head = opt['head_num']
-        self.blockshape_latent_dim = opt['block_latent_dim']
 
         use_head = ['GATConv', 'TransformerConv', 'GPSConv', 'GATv2Conv', 'SuperGATConv']
 
@@ -240,21 +309,21 @@ class AttentionBlockGenerator(BlockGenerator):
         
 
         if opt['convlayer'] in use_head:
-            self.e_conv1 = self.convlayer(int(self.latent_ch * 2), self.latent_ch, heads = self.head)
+            self.e_conv1 = self.convlayer(int(self.latent_ch * 3), self.latent_ch, heads = self.head)
             self.e_conv2 = self.convlayer(self.latent_ch * self.head, self.latent_ch, heads = self.head)
             self.e_conv3 = self.convlayer(self.latent_ch * self.head, self.latent_ch, heads = self.head)
             self.d_conv2 = self.convlayer(self.latent_ch * self.head, self.latent_ch, heads = self.head)
             self.d_conv3 = self.convlayer(self.latent_ch * self.head, self.latent_ch, heads = self.head)
             
-            self.aggregate = nn.Linear(self.latent_ch * 38, self.latent_dim)
+            self.aggregate = nn.Linear(self.latent_ch * (self.head * 3 + 3), self.latent_dim)
         else:
-            self.e_conv1 = self.convlayer(int(self.latent_ch * 2), self.latent_ch)
+            self.e_conv1 = self.convlayer(int(self.latent_ch * 3), self.latent_ch)
             self.e_conv2 = self.convlayer(self.latent_ch, self.latent_ch)
             self.e_conv3 = self.convlayer(self.latent_ch, self.latent_ch)
             self.d_conv2 = self.convlayer(self.latent_ch, self.latent_ch)
             self.d_conv3 = self.convlayer(self.latent_ch, self.latent_ch)
 
-            self.aggregate = nn.Linear(int(self.latent_ch * 5), self.latent_dim)        
+            self.aggregate = nn.Linear(int(self.latent_ch * 6), self.latent_dim)        
 
 
 
@@ -268,6 +337,18 @@ class AttentionBlockGenerator(BlockGenerator):
 
             self.d_posy_0 = nn.Linear(self.latent_ch * self.head, self.latent_ch)
             self.d_posy_1 = nn.Linear(self.latent_ch, 1)
+
+            self.d_sizex_0 = nn.Linear(self.latent_ch * self.head, self.latent_ch)
+            self.d_sizex_1 = nn.Linear(self.latent_ch, 1)
+
+            self.d_sizey_0 = nn.Linear(self.latent_ch * self.head, self.latent_ch)
+            self.d_sizey_1 = nn.Linear(self.latent_ch, 1)
+
+            self.d_velx_0 = nn.Linear(self.latent_ch * self.head, self.latent_ch)
+            self.d_velx_1 = nn.Linear(self.latent_ch, 1)
+
+            self.d_vely_0 = nn.Linear(self.latent_ch * self.head, self.latent_ch)
+            self.d_vely_1 = nn.Linear(self.latent_ch, 1)
 
             self.d_act_type_0 = nn.Linear(self.latent_ch * self.head, self.latent_ch)
             self.d_act_type_1 = nn.Linear(self.latent_ch, 6)

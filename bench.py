@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from model import *
 
 from dataset import TrafficDataset
-from utils import read_train_yaml, plot_comparison
+from utils import read_train_yaml, plot_comparison, plot_output
 
 warnings.filterwarnings("ignore")
 
@@ -76,15 +76,40 @@ class Benchmark:
                 data = data.to(self.device)
                 output = self.model(data)
 
-                plot_comparison(data, output, data.edge_index,
-                                config=self.config, 
-                                save_dir=os.path.join(self.opts['log_dir'], f"vis/plot_{idx}.jpg"))
+                # plot_comparison(data, output, data.edge_index,
+                #                 config=self.config, 
+                #                 save_dir=os.path.join(self.opts['log_dir'], f"vis/plot_{idx}.jpg"))
 
-        
+    
+    def test_decoder(self, num_iter):
+        with torch.no_grad():
+            self.model.eval()
+
+            for idx in range(num_iter):
+                data = torch.randn((self.opts['bench_batch_size'], self.opts['latent_dim']), device=self.device)
+                edge_index = torch.zeros((2, 15))
+
+                cnt = 0
+                for idx1 in range(0, 5):
+                    for idx2 in range(idx1 + 1, 6):
+                        edge_index[0][cnt] = idx1
+                        edge_index[1][cnt] = idx2
+                        cnt += 1
+
+                edge_index = edge_index.to(dtype=torch.int64, device=self.device)
+                
+                output = self.model.decoder_only(data, edge_index)
+
+
+                plot_output(output, data, edge_index,
+                            config=self.config, 
+                            save_dir=os.path.join(self.opts['log_dir'], f"vis_gauss/plot_{idx}.jpg"))
+
 
 if __name__ == "__main__":
     random.seed(42) # make sure every time has the same training and validation sets
     opts = read_train_yaml(os.getcwd(), filename = "experiment.yaml")
     bench = Benchmark(opts)
-    bench.run()
+    # bench.run()
+    bench.test_decoder(100)
     
