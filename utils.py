@@ -8,8 +8,10 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap
 from matplotlib.patches import Rectangle
-import matplotlib as mpl
+import matplotlib.image as mpimg
 
+import matplotlib as mpl
+import torch
 
 def read_train_yaml(checkpoint_name, filename = "train.yaml"):
     with open(os.path.join(checkpoint_name, filename), "rb") as stream:
@@ -43,10 +45,10 @@ def graph2vector_processed(g):
     width = get_node_attribute(g, 'width', np.double)
     length = get_node_attribute(g, 'length', np.double)
 
-    velx = get_node_attribute(g, 'velx', np.double)
-    vely = get_node_attribute(g, 'vely', np.double)
+    node_vel = get_node_attribute(g, 'vel', np.double)
 
-    direction = get_node_attribute(g, 'direction', np.double)
+    yaw_sin = get_node_attribute(g, 'yaw_sin', np.double)
+    yaw_cos = get_node_attribute(g, 'yaw_cos', np.double)
 
     actor_type = get_node_attribute_cat(g, 'type', np.double)
     lane_index = get_node_attribute_cat(g, 'lane_index', np.double)
@@ -55,10 +57,10 @@ def graph2vector_processed(g):
     edge_list = np.array(list(g.edges()), dtype=np.int_)
     edge_list = np.transpose(edge_list)
     
-    direction = np.expand_dims(direction, axis=1)
+    node_vel = np.expand_dims(node_vel, axis=1)
     node_pos = np.stack((posx, posy), 1)
     node_size = np.stack((width, length), 1)
-    node_vel = np.stack((velx, vely), 1)
+    direction = np.stack((yaw_cos, yaw_sin), 1)
 
 
     node_idx = np.stack((np.arange(num_nodes) / num_nodes, np.arange(num_nodes) / num_nodes), axis = 1)
@@ -79,7 +81,21 @@ def denormalize(arr, config, key1_dim, key2_dim=None):
     return arr
 
 
-def draw(ax, pos, size, vel, edge_index, direction, actor_type, lane_index, title, cmap):
+def draw(ax, pos, size, vel, edge_index, direction, actor_type, lane_index, title, cmap, path, location_id, px_to_utm, config):
+    image = mpimg.imread(path[0])
+
+    ax.imshow(image, zorder=0)
+
+    px_to_utm = float(px_to_utm[0])
+    loc_id = int(location_id[0])
+
+    ax.set_xlim(int(config[loc_id]["x_lim"][0] / config["scale_down_factor"]),
+                int(config[loc_id]["x_lim"][1] / config["scale_down_factor"]))
+
+    ax.set_ylim(int(config[loc_id]["y_lim"][0] / config["scale_down_factor"]),
+                int(config[loc_id]["y_lim"][1] / config["scale_down_factor"]))
+
+
     for i, j in edge_index.T:
         x = [pos[i, 0], pos[j, 0]]
         y = [pos[i, 1], pos[j, 1]]
@@ -90,33 +106,56 @@ def draw(ax, pos, size, vel, edge_index, direction, actor_type, lane_index, titl
 
     for i in range(len(pos)):
         color = cmap(lane_index[i] % 10 / 10)
-        x, y = pos[i]
+        center_x, center_y = pos[i]
         width, length = size[i]
 
+        width = (width / px_to_utm) / config["scale_down_factor"]
+        length = (length / px_to_utm) / config["scale_down_factor"]
+
+        print(center_x, center_y, px_to_utm, config["scale_down_factor"])
+
+        center_x = (center_x / px_to_utm) / config["scale_down_factor"]
+        center_y = (-center_y / px_to_utm) / config["scale_down_factor"]
+        
+        print(center_x, center_y)
         marker = marker_map.get(actor_type[i], 'x')
-        dx, dy = vel[i]
-        direc = direction[i]
+
+        direction_x, direction_y = direction[i]
+        cur_vel = vel[i][0]
+        yaw = np.degrees(np.arctan2(-direction_y, direction_x)) + config[int(location_id)]["deg_offset"]
+
+        anchor = (center_x - length // 2,
+                  center_y - width // 2)
+
+        print(anchor, center_x, center_y, length, width )
+
 
         if width == 0 and length == 0:
-            ax.scatter(x, y, marker=marker, color=color, edgecolors='k', s=30, zorder=3)
+            ax.scatter(center_x, center_y, marker=marker, color=color, edgecolors='k', s=30, zorder=3)
         else:
-            rect = Rectangle((x - width / 2, y - length / 2), width, length,
-                                linewidth=1, edgecolor='k', facecolor=color, zorder=3)
-            t2 = mpl.transforms.Affine2D().rotate_deg_around(x, y, direc) + ax.transData
+            rect = Rectangle(anchor, length, width,
+                            linewidth=1, edgecolor='k', facecolor='blue', zorder=3)
+            t2 = mpl.transforms.Affine2D().rotate_deg_around(center_x, center_y, yaw) + ax.transData
             rect.set_transform(t2)
             ax.add_patch(rect)
 
         # Draw velocity arrow
-        ax.arrow(x, y, dx * 2, dy * 2, head_width=0.5, head_length=0.5, fc='black', ec='black', zorder=4)
+        ax.arrow(center_x, center_y, direction_x * cur_vel, -direction_y * cur_vel,
+                   head_width=2, head_length=2, fc="red", ec="red", clip_on=False, zorder=4)
 
     ax.set_title(title)
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.axis('equal')
+    ax.set_xlabel("X Axis (Front) - IMU")
+    ax.set_ylabel("Y Axis (Left) - IMU")
+
+    # ax.set_xlim(0, image.shape[1])
+    # ax.set_ylim(image.shape[0], 0)
+    
     ax.grid(True, linestyle='--', alpha=0.5)
 
 
-def plot_comparison(target, output, edge_index, config, save_dir=None):
+def plot_comparison(target, output, edge_index, config, opts, idx):
+    save_dir = os.path.join(opts['log_dir'], f"vis/plot_{idx}.jpg")
+
     orig_pos, orig_size, orig_vel, orig_acttype, orig_direc, orig_laneidx = (
         target.pos, target.dimen, target.vel, target.actor_type, target.direction, target.lane_index
     )
@@ -131,7 +170,7 @@ def plot_comparison(target, output, edge_index, config, save_dir=None):
     size = size.detach().cpu().numpy()
     vel = vel.detach().cpu().numpy()
     direc = direc.detach().cpu().numpy()
-
+    
     orig_acttype = get_class_value(orig_acttype.detach().cpu().numpy())
     orig_laneidx = get_class_value(orig_laneidx.detach().cpu().numpy())
     acttype = get_class_value(acttype.detach().cpu().numpy())
@@ -144,11 +183,8 @@ def plot_comparison(target, output, edge_index, config, save_dir=None):
     orig_size = denormalize(orig_size, config, 'dimensions_width', 'dimensions_length')
     size = denormalize(size, config, 'dimensions_width', 'dimensions_length')
 
-    orig_vel = denormalize(orig_vel, config, 'direction_imu_x', 'direction_imu_y')
-    vel = denormalize(vel, config, 'direction_imu_x', 'direction_imu_y')
-    
-    orig_direc = denormalize(orig_direc, config, 'yaw')
-    direc = denormalize(direc, config, 'yaw')
+    orig_vel = denormalize(orig_vel, config, 'vel_mag')
+    vel = denormalize(vel, config, 'vel_mag')
 
     edge_index = edge_index.detach().cpu().numpy()
     
@@ -157,10 +193,10 @@ def plot_comparison(target, output, edge_index, config, save_dir=None):
     plt.figure(figsize=(14, 6))
 
     ax1 = plt.subplot(1, 2, 1)
-    draw(ax1, orig_pos, orig_size, orig_vel, edge_index, orig_direc, orig_acttype, orig_laneidx, 'Ground Truth', cmap)
+    draw(ax1, orig_pos, orig_size, orig_vel, edge_index, orig_direc, orig_acttype, orig_laneidx, 'Ground Truth', cmap, target.path, target.location_id, target.px_to_utm, opts['uniD_config'])
 
     ax2 = plt.subplot(1, 2, 2)
-    draw(ax2, pos, size, vel, edge_index, direc, acttype, laneidx, 'Model Prediction', cmap)
+    draw(ax2, pos, size, vel, edge_index, direc, acttype, laneidx, 'Model Prediction', cmap, target.path, target.location_id, target.px_to_utm, opts['uniD_config'])
 
     plt.tight_layout()
 
@@ -169,9 +205,6 @@ def plot_comparison(target, output, edge_index, config, save_dir=None):
         os.makedirs(os.path.dirname(save_dir), exist_ok=True)
         plt.savefig(save_dir, dpi=300)
         plt.close()
-
-    fig = plt.gcf()
-    return fig2img(fig)
 
 
 def plot_output(output, latent, edge_index, config, save_dir=None):
@@ -222,3 +255,7 @@ def fig2img(fig):
     buf.seek(0) # Rewind the buffer to the beginning
     img = Image.open(buf) # Open the buffer as a PIL Image
     return img
+
+
+def to_boxes(size, pos):
+    return torch.cat((pos, size + pos), dim = -1)

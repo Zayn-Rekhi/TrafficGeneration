@@ -7,6 +7,8 @@ from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader, DataListLoader
 from torch_geometric.data import Batch
 
+from torchvision.ops import distance_box_iou_loss
+
 from logger import Logger, MetricRecorder
 
 import os
@@ -19,10 +21,41 @@ from model import *
 
 
 from dataset import TrafficDataset
-from utils import read_train_yaml, plot_comparison
+from utils import read_train_yaml, plot_comparison, to_boxes
 
 warnings.filterwarnings("ignore")
 
+
+
+def anti_iou_loss(out_pos, out_size):
+    out_boxes = to_boxes(out_size, out_pos)  # shape: (N, 4)
+    group_size = 6
+    N = out_boxes.size(0)
+
+    assert N % group_size == 0, "Total number of boxes must be divisible by group size"
+
+    out_boxes = out_boxes.view(-1, group_size, 4)  # B groups of 6
+
+    b1 = out_boxes.unsqueeze(2)  # (B, 6, 1, 4)
+    b2 = out_boxes.unsqueeze(1)  # (B, 1, 6, 4)
+    pair1 = b1.expand(-1, group_size, group_size, -1).reshape(-1, 4)  # (B*36, 4)
+    pair2 = b2.expand(-1, group_size, group_size, -1).reshape(-1, 4)  # (B*36, 4)
+
+    pairwise_diou = distance_box_iou_loss(pair1, pair2).view(-1, group_size, group_size)  # (B, 6, 6)
+
+    device = out_boxes.device
+    mask = ~torch.eye(group_size, dtype=torch.bool, device=device)  # (6, 6)
+    pairwise_diou = pairwise_diou[:, mask].view(-1, group_size * (group_size - 1))  # (B, 30)
+
+    return pairwise_diou.mean()
+
+
+def directional_cosine_loss(pred, target):
+    pred = F.normalize(pred, dim=-1)  # ensure unit vectors
+    target = F.normalize(target, dim=-1)
+    cosine = (pred * target).sum(dim=-1)  # dot product
+    angle_distance = 1 - cosine  # 1 - cos(θ)
+    return angle_distance
 
 class Runner:
     def __init__(self, opts):
@@ -59,6 +92,9 @@ class Runner:
             self.model = BlockGenerator(self.opts, self.device)
         elif self.opts['attention_generator']:
             self.model = AttentionBlockGenerator(self.opts, self.device)
+        elif self.opts['attention_generator_embed']:
+            self.model = AttentionBlockGeneratorWithEmbeddings(self.opts, self.device)
+
 
         assert self.model, "Error in model name"
 
@@ -72,10 +108,10 @@ class Runner:
             "Posloss": nn.MSELoss(reduction='sum'),
             "Sizeloss": nn.MSELoss(reduction='sum'),
             "Velloss": nn.MSELoss(reduction='sum'),
-            "Directionloss": nn.MSELoss(reduction='sum'),
-            "IOUloss": nn.MSELoss(reduction='sum'),
+            "Directionloss": directional_cosine_loss,
             "Laneloss": nn.CrossEntropyLoss(reduction='sum'),
             "Actloss": nn.CrossEntropyLoss(reduction='sum'),
+            "IOUloss": anti_iou_loss,
         }
 
         self.use_logger = self.opts['use_logger']
@@ -121,10 +157,10 @@ class Runner:
                 print(best_metrics)
 
                 if "Loss_Val" in best_metrics:
-                    self.logger.save_model(self.model, f"best_val_loss.pth")
+                    self.logger.save_model(self.model, f"best_val_loss1.pth")
 
                 if "Posloss_Val" in best_metrics:
-                    self.logger.save_model(self.model, f"best_val_pos_loss.pth")
+                    self.logger.save_model(self.model, f"best_val_pos_loss1.pth")
             
             if self.use_logger:
                 self.logger.log_metrics(metrics, step=epoch)
@@ -149,8 +185,9 @@ class Runner:
             act_loss = self.loss_dict['Actloss'](acttype, data.actor_type)
             direc_loss = self.loss_dict['Directionloss'](direction, data.direction)
             lane_loss = self.loss_dict['Laneloss'](laneidx, data.lane_index)
+            iou_loss = self.loss_dict['IOUloss'](pos, size)
             kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
-            
+
             loss = 0
 
             if step > self.opts['include_pos_at_epoch']:
@@ -166,14 +203,17 @@ class Runner:
                 loss += self.opts['actor_weight'] * act_loss
             
             if step > self.opts['include_direction_at_epoch']:
-                loss += self.opts['direction_weight'] * direc_loss
+                loss += self.opts['direction_weight'] * direc_loss.mean()
             
             if step > self.opts['include_lane_at_epoch']:
                 loss += self.opts['lane_weight'] * lane_loss
             
+            if step > self.opts['include_iou_at_epoch']:
+               loss += self.opts['iou_weight'] * iou_loss
+            
             if step > self.opts['include_kld_at_epoch']:
                 loss += self.opts['kld_weight'] * kld_loss
-                
+
 
             loss.backward()
 
@@ -186,9 +226,10 @@ class Runner:
                     "Sizeloss_Train": size_loss.item(),
                     "Velloss_Train": vel_loss.item(),
                     "Actloss_Train": act_loss.item(),
-                    "Direcloss_Train": direc_loss.item(),
+                    "Direcloss_Train": direc_loss.mean().item(),
                     "Laneloss_Train": lane_loss.item(),
                     "KLDloss_Train": kld_loss.item(),
+                    "IOUloss_Train": iou_loss.item(),
                     "Loss_Train": loss.item(),
                     "Mu_Mean": mu.mean().item(),
                     "Mu_Std": mu.std().item(),
@@ -215,17 +256,22 @@ class Runner:
                 act_loss = self.loss_dict['Actloss'](acttype, data.actor_type)
                 direc_loss = self.loss_dict['Directionloss'](direction, data.direction)
                 lane_loss = self.loss_dict['Laneloss'](laneidx, data.lane_index)
+                iou_loss = self.loss_dict['IOUloss'](pos, size)
                 kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
+
 
                 loss = (
                     self.opts['pos_weight'] * pos_loss +
                     self.opts['size_weight'] * size_loss +
                     self.opts['vel_weight'] * vel_loss + 
                     self.opts['actor_weight'] * act_loss + 
-                    self.opts['direction_weight'] * direc_loss + 
                     self.opts['lane_weight'] * lane_loss + 
-                    self.opts['kld_weight'] * kld_loss
+                    self.opts['kld_weight'] * kld_loss +
+                    self.opts['iou_weight'] * iou_loss +
+                    self.opts['direction_weight'] * direc_loss.mean()
                 )
+                    
+
 
                 metrics_recorder.record(
                     {
@@ -233,9 +279,10 @@ class Runner:
                         "Sizeloss_Val": size_loss.item(),
                         "Velloss_Val": vel_loss.item(),
                         "Actloss_Val": act_loss.item(),
-                        "Direcloss_Val": direc_loss.item(),
+                        "Direcloss_Val": direc_loss.mean().item(),
                         "Laneloss_Val": lane_loss.item(),
                         "KLDloss_Val": kld_loss.item(),
+                        "IOUSloss_Val": iou_loss.item(),
                         "Loss_Val": loss.item(),
                     }
                 )
@@ -247,4 +294,3 @@ if __name__ == "__main__":
     opts = read_train_yaml(os.getcwd(), filename = "experiment.yaml")
     runner = Runner(opts)
     runner.train()
-    

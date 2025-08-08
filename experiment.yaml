@@ -1,6 +1,6 @@
 ###############################  Training setting   ############################
 gpu_ids : 
-  - 6
+  - 7 
 
 clean_cache : False
 save_record : False
@@ -11,10 +11,10 @@ val_ratio : 0.2
 total_epochs : 300
 start_epoch : 0
 
-dataset_path: "/home/zayn/dataset_processed_traffic/inD-dataset-v1.1"
+dataset_path: "/home/zayn/dataset_processed_traffic/uniD-dataset-v1.1"
 log_dir: "/home/zayn/genexp/logs"
 
-use_logger: false 
+use_logger: true 
 wandb_project: "TrafficVAE"
 wandb_name: "Train"
 wandb_entity: "TrafficGeneration"
@@ -22,8 +22,9 @@ save_freq: 5
 freeze_encoder_epoch: 200
 
 ###################################   GlobalMapper setting   #######################################
-generator: true
+generator: false
 attention_generator: false
+attention_generator_embed: true
 
 attten_net : 
   - 'TransformerConv'
@@ -38,23 +39,30 @@ head_num : 24  # only for GAT
 batch_size : 200
 latent_dim: 32
 
+embed_size: 384
+
 
 ################################    weight setting  #########################################################
-pos_weight : 2.0
-size_weight: 2.0
-vel_weight: 2.0
+pos_weight : 2.5
+size_weight: 1.5
+vel_weight: 1.0
 actor_weight: 1.0
-direction_weight: 1.0
+direction_weight: 2.5
 lane_weight: 2.0
 kld_weight : 4.0
+iou_weight: 0.0001
+
+direction_lambda: 0.05
 
 include_pos_at_epoch: -1
 include_size_at_epoch: -1
 include_vel_at_epoch: -1
 include_actor_at_epoch: 100
-include_direction_at_epoch: 100
+include_direction_at_epoch: -1
 include_lane_at_epoch: 100
-include_kld_at_epoch: -1 
+include_kld_at_epoch: 300
+include_iou_at_epoch: 5
+
 
 ####################################     resume setting     #####################################################
 resume : False
@@ -64,7 +72,35 @@ resume_epoch : 400
 
 ####################################     benchmark setting     #####################################################
 
-bench_config_path: "/home/zayn/dataset_vis_traffic/inD-dataset-v1.1/distributions/config.json"
-bench_path: "/home/zayn/genexp/logs/best_val_loss.pth"
+bench_config_path: "/home/zayn/dataset_vis_traffic/uniD-dataset-v1.1/distributions/config.json"
+bench_path: "/home/zayn/genexp/logs/best_val_loss1.pth"
 bench_batch_size: 1
+bench_load_data: true
+
+inD_config:
+  scale_down_factor: 12
+  1:
+    x_lim: [2000, 11500]
+    y_lim: [9450, 0]
+    deg_offset: 0
+  2:
+    x_lim: [0, 12500]
+    y_lim: [7400, 0]
+    deg_offset: 0
+  3:
+    x_lim: [0, 11500]
+    y_lim: [9365, 0]
+    deg_offset: 0
+  4:
+    x_lim: [2700, 15448]
+    y_lim: [9365, 0]
+    deg_offset: 0
+
+uniD_config:
+  scale_down_factor: 2
+  0:
+    x_lim: [600, 1800]
+    y_lim: [1350, 360]
+    deg_offset: 0
+
 

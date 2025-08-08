@@ -63,15 +63,16 @@ class TrafficDataset(Dataset):
 
         assert os.path.exists(root), f"Data root {root} does not exist."
         self.data_root = root
-        self.data, self.embeddings = self.load_data()
         self.embedder = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+        self.data, self.embeddings = self.load_data()
 
 
     def len(self) -> int:
         return len(self.data)
 
     def get(self, idx: int):
-        return self.construct_graph_from_data(self.data[idx])
+        return self.construct_graph_from_data(self.data[idx], 
+                                              self.embeddings[idx])
         # graph, features, mask, adjacency matrix
 
     def load_data(self):
@@ -85,6 +86,7 @@ class TrafficDataset(Dataset):
             print("TrafficDataset.load_data: Loaded data from folder", folder)
             
         return all_data, all_embeddings
+            
 
     def _load_data(self, path):
         ls_fn = os.listdir(path)
@@ -98,17 +100,17 @@ class TrafficDataset(Dataset):
                 data = json.load(f)
 
             all_data.append(data)
-            all_embeddings.append(data['description'])
+            all_embeddings.append(data['prompt'])
 
-        all_embeddings = self.embedder(all_embeddings)
-
+        all_embeddings = self.embedder.encode(all_embeddings)
+        
         print(f"TrafficDataset.load_data: Number of data samples: {len(all_data)}")
         print(
             f"TrafficDataset.load_data: Number of data samples discarded: {len(ls_fn) - len(all_data)}"
         )
         return all_data, all_embeddings
 
-    def construct_graph_from_data(self, data):
+    def construct_graph_from_data(self, data, prompt):
         """
         Transform the data to a probabilistic grammar.
         :param data: The input data, a dictionary.
@@ -116,6 +118,10 @@ class TrafficDataset(Dataset):
 
         graph = nx.Graph()
         actors = data["actors"]
+        img_path = data['img_file']
+        location_id = data['location_id']
+        px_to_utm = data['px_to_utm']
+
         
         for actor in actors:
             curr_idx = len(graph.nodes)
@@ -124,9 +130,9 @@ class TrafficDataset(Dataset):
                            posy=actor["location_imu_y"],
                            width=actor["dimensions_width"],
                            length=actor["dimensions_length"],
-                           velx=actor["direction_imu_x"],
-                           vely=actor["direction_imu_y"],
-                           direction=actor["yaw"],
+                           vel=actor["vel_mag"],
+                           yaw_sin=actor["yaw_sin"],
+                           yaw_cos=actor["yaw_cos"],
                            type=self._encode_type(actor["type"].lower()),
                            lane_index=self._encode_lane_index(actor["lane_index"]))
             
@@ -138,7 +144,8 @@ class TrafficDataset(Dataset):
         assert graph.number_of_edges() == 15, f"graph does not contain 15 edges: {graph.number_of_edges()}"
 
         node_pos, node_size, node_vel, actor_type, lane_index, direction, edge_list, node_idx = graph2vector_processed(graph)       
-        
+        embed = torch.unsqueeze(torch.tensor(prompt, dtype=torch.float32), dim=0)
+
         return CustomData(edge_index=torch.tensor(edge_list, dtype=torch.int64), 
                           pos=torch.tensor(node_pos, dtype=torch.float32),
                           dimen=torch.tensor(node_size, dtype=torch.float32),
@@ -146,7 +153,11 @@ class TrafficDataset(Dataset):
                           actor_type=torch.tensor(actor_type, dtype=torch.float32),
                           lane_index=torch.tensor(lane_index, dtype=torch.float32),
                           direction=torch.tensor(direction, dtype=torch.float32),
-                          node_idx=torch.tensor(node_idx, dtype=torch.float32))
+                          node_idx=torch.tensor(node_idx, dtype=torch.float32),
+                          embeddings=embed,
+                          path=img_path,
+                          location_id=location_id,
+                          px_to_utm=px_to_utm)
     
 
     def _encode_type(self, x):
@@ -201,13 +212,13 @@ if __name__ == "__main__":
     #     # print(adjacency_matrix)
 
     loader = DataLoader(
-        dataset, batch_size=1, num_workers=1
+        dataset, batch_size=10, num_workers=1
     )
 
     for i, data in enumerate(loader):
         print(i)
-        print(data.edge_index)
-        print(data.edge_index.shape)        
+        print(data.embeddings.shape)
+        break
 
     # # ==========================================
     # ## Demo for translating the graphs
