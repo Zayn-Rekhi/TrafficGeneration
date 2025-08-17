@@ -14,17 +14,17 @@ start_epoch : 0
 dataset_path: "/home/zayn/dataset_processed_traffic/uniD-dataset-v1.1"
 log_dir: "/home/zayn/genexp/logs"
 
-use_logger: true 
+use_logger: false 
 wandb_project: "TrafficVAE"
 wandb_name: "Train"
 wandb_entity: "TrafficGeneration"
 save_freq: 5
 freeze_encoder_epoch: 200
 
-###################################   GlobalMapper setting   #######################################
-generator: false
+###################################   Model Settings   #######################################
+generator: true
 attention_generator: false
-attention_generator_embed: true
+attention_generator_embed: false
 
 attten_net : 
   - 'TransformerConv'
@@ -37,8 +37,9 @@ lr : 0.0001
 n_ft_dim : 512
 head_num : 24  # only for GAT
 batch_size : 200
-latent_dim: 32
-
+latent_dim: 128
+n_embeddings: 1024
+beta: 0.25
 embed_size: 384
 
 
@@ -50,7 +51,7 @@ actor_weight: 1.0
 direction_weight: 2.5
 lane_weight: 2.0
 kld_weight : 4.0
-iou_weight: 0.0001
+iou_weight: 0.0
 
 direction_lambda: 0.05
 

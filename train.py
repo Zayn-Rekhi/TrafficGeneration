@@ -177,7 +177,7 @@ class Runner:
             data = data.to(self.device)
             self.optimizer.zero_grad()
 
-            pos, size, vel, acttype, direction, laneidx, log_var, mu = self.model(data)
+            pos, size, vel, acttype, direction, laneidx, vqloss, perplexity = self.model(data)
                 
             pos_loss = self.loss_dict['Posloss'](pos, data.pos)
             size_loss = self.loss_dict['Sizeloss'](size, data.dimen)
@@ -186,9 +186,10 @@ class Runner:
             direc_loss = self.loss_dict['Directionloss'](direction, data.direction)
             lane_loss = self.loss_dict['Laneloss'](laneidx, data.lane_index)
             iou_loss = self.loss_dict['IOUloss'](pos, size)
-            kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
 
             loss = 0
+
+            loss += vqloss
 
             if step > self.opts['include_pos_at_epoch']:
                 loss += self.opts['pos_weight'] * pos_loss
@@ -210,10 +211,6 @@ class Runner:
             
             if step > self.opts['include_iou_at_epoch']:
                loss += self.opts['iou_weight'] * iou_loss
-            
-            if step > self.opts['include_kld_at_epoch']:
-                loss += self.opts['kld_weight'] * kld_loss
-
 
             loss.backward()
 
@@ -228,14 +225,10 @@ class Runner:
                     "Actloss_Train": act_loss.item(),
                     "Direcloss_Train": direc_loss.mean().item(),
                     "Laneloss_Train": lane_loss.item(),
-                    "KLDloss_Train": kld_loss.item(),
+                    "VQloss_Train": vqloss.item(),
                     "IOUloss_Train": iou_loss.item(),
+                    "Perplexity_Train": perplexity.item(),
                     "Loss_Train": loss.item(),
-                    "Mu_Mean": mu.mean().item(),
-                    "Mu_Std": mu.std().item(),
-                    "Log_Var_Mean": log_var.mean().item(),
-                    "Log_Var_Std": log_var.std().item(),
-                    "Log_Var_Exp_Mean": log_var.exp().mean().item(),
                     #"Valimages": plot_comparison(data.pos[0], pos[0], data.edge_index[0], idx),
                 }
             )
@@ -248,7 +241,7 @@ class Runner:
             for idx, data in enumerate(self.validation_loader):
                 data = data.to(self.device)
 
-                pos, size, vel, acttype, direction, laneidx, log_var, mu = self.model(data)
+                pos, size, vel, acttype, direction, laneidx, vqloss, perplexity = self.model(data)
                 
                 pos_loss = self.loss_dict['Posloss'](pos, data.pos)
                 size_loss = self.loss_dict['Sizeloss'](size, data.dimen)
@@ -257,8 +250,6 @@ class Runner:
                 direc_loss = self.loss_dict['Directionloss'](direction, data.direction)
                 lane_loss = self.loss_dict['Laneloss'](laneidx, data.lane_index)
                 iou_loss = self.loss_dict['IOUloss'](pos, size)
-                kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
-
 
                 loss = (
                     self.opts['pos_weight'] * pos_loss +
@@ -266,7 +257,6 @@ class Runner:
                     self.opts['vel_weight'] * vel_loss + 
                     self.opts['actor_weight'] * act_loss + 
                     self.opts['lane_weight'] * lane_loss + 
-                    self.opts['kld_weight'] * kld_loss +
                     self.opts['iou_weight'] * iou_loss +
                     self.opts['direction_weight'] * direc_loss.mean()
                 )
@@ -281,7 +271,6 @@ class Runner:
                         "Actloss_Val": act_loss.item(),
                         "Direcloss_Val": direc_loss.mean().item(),
                         "Laneloss_Val": lane_loss.item(),
-                        "KLDloss_Val": kld_loss.item(),
                         "IOUSloss_Val": iou_loss.item(),
                         "Loss_Val": loss.item(),
                     }
