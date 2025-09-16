@@ -153,13 +153,61 @@ def draw(ax, pos, size, vel, edge_index, direction, actor_type, lane_index, titl
     ax.grid(True, linestyle='--', alpha=0.5)
 
 
+def draw2(ax, pos, size, vel, edge_index, direction, actor_type, lane_index, title, cmap):
+
+    for i, j in edge_index.T:
+        x = [pos[i, 0], pos[j, 0]]
+        y = [pos[i, 1], pos[j, 1]]
+        ax.plot(x, y, color='lightgray', linewidth=0.5, zorder=1)
+
+    # Marker shapes for up to 5 actor types
+    marker_map = {0: 'o', 1: 's', 2: '^', 3: 'D', 4: 'P'}
+
+    for i in range(len(pos)):
+        color = cmap(lane_index[i] % 10 / 10)
+        center_x, center_y = pos[i]
+        width, length = size[i]
+        
+        marker = marker_map.get(actor_type[i], 'x')
+
+        direction_x, direction_y = direction[i]
+        cur_vel = vel[i][0]
+        yaw = np.degrees(np.arctan2(-direction_y, direction_x))
+
+        anchor = (center_x - length // 2,
+                  center_y - width // 2)
+
+
+        if width == 0 and length == 0:
+            ax.scatter(center_x, center_y, marker=marker, color=color, edgecolors='k', s=30, zorder=3)
+        else:
+            rect = Rectangle(anchor, length, width,
+                            linewidth=1, edgecolor='k', facecolor='blue', zorder=3)
+            t2 = mpl.transforms.Affine2D().rotate_deg_around(center_x, center_y, yaw) + ax.transData
+            rect.set_transform(t2)
+            ax.add_patch(rect)
+
+        # Draw velocity arrow
+        ax.arrow(center_x, center_y, direction_x * cur_vel, -direction_y * cur_vel,
+                   head_width=2, head_length=2, fc="red", ec="red", clip_on=False, zorder=4)
+
+    ax.set_title(title)
+    ax.set_xlabel("X Axis (Front) - IMU")
+    ax.set_ylabel("Y Axis (Left) - IMU")
+
+    # ax.set_xlim(0, image.shape[1])
+    # ax.set_ylim(image.shape[0], 0)
+    
+    ax.grid(True, linestyle='--', alpha=0.5)
+
+
 def plot_comparison(target, output, edge_index, config, opts, idx):
     save_dir = os.path.join(opts['log_dir'], f"vis/plot_{idx}.jpg")
 
     orig_pos, orig_size, orig_vel, orig_acttype, orig_direc, orig_laneidx = (
         target.pos, target.dimen, target.vel, target.actor_type, target.direction, target.lane_index
     )
-    pos, size, vel, acttype, direc, laneidx, _, _ = output
+    pos, size, vel, acttype, direc, laneidx, _, _, _, _ = output
 
     orig_pos = orig_pos.detach().cpu().numpy()
     orig_size = orig_size.detach().cpu().numpy()
@@ -221,8 +269,8 @@ def plot_output(output, latent, edge_index, config, save_dir=None):
 
     pos = denormalize(pos, config, 'location_imu_x', 'location_imu_y')
     size = denormalize(size, config, 'dimensions_width', 'dimensions_length')
-    vel = denormalize(vel, config, 'direction_imu_x', 'direction_imu_y')
-    direc = denormalize(direc, config, 'yaw')
+    vel = denormalize(vel, config, 'vel_mag')
+
 
     edge_index = edge_index.detach().cpu().numpy()
     
@@ -233,9 +281,8 @@ def plot_output(output, latent, edge_index, config, save_dir=None):
     ax1 = plt.subplot(1, 2, 1)
     ax1.imshow(latent, cmap=cmap)
 
-
     ax2 = plt.subplot(1, 2, 2)
-    draw(ax2, pos, size, vel, edge_index, direc, acttype, laneidx, 'Model Prediction', cmap)
+    draw2(ax2, pos, size, vel, edge_index, direc, acttype, laneidx, 'Model Prediction', cmap)
 
     plt.tight_layout()
 

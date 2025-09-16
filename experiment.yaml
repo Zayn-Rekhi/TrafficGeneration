@@ -14,7 +14,7 @@ start_epoch : 0
 dataset_path: "/home/zayn/dataset_processed_traffic/uniD-dataset-v1.1"
 log_dir: "/home/zayn/genexp/logs"
 
-use_logger: true 
+use_logger: false 
 wandb_project: "TrafficVAE"
 wandb_name: "Train"
 wandb_entity: "TrafficGeneration"
@@ -23,8 +23,8 @@ freeze_encoder_epoch: 200
 
 ###################################   GlobalMapper setting   #######################################
 generator: false
-attention_generator: false
-attention_generator_embed: true
+attention_generator: true
+attention_generator_embed: false
 
 attten_net : 
   - 'TransformerConv'
@@ -38,7 +38,7 @@ n_ft_dim : 512
 head_num : 24  # only for GAT
 batch_size : 200
 latent_dim: 32
-
+n_components: 10
 embed_size: 384
 
 
@@ -60,12 +60,12 @@ include_vel_at_epoch: -1
 include_actor_at_epoch: 100
 include_direction_at_epoch: -1
 include_lane_at_epoch: 100
-include_kld_at_epoch: 300
+include_kld_at_epoch: -1
 include_iou_at_epoch: 5
 
 
 ####################################     resume setting     #####################################################
-resume : False
+resume : false
 resume_dir : 'Your resume folder'
 import_name : 'latest'
 resume_epoch : 400

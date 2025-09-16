@@ -96,7 +96,7 @@ class Benchmark:
             self.model.eval()
 
             for idx in range(num_iter):
-                sentence = ['The road structure consists of a primary bidirectional road intersected by a smaller road forming a T-junction. The primary road has two lanes in each direction, separated by a physical median, with an additional left-turn lane for one direction near the intersection. The smaller intersecting road connects from one side and merges into the primary road with a single entry lane. Dedicated bike lanes exist in both directions of the primary road, physically separated from the vehicle lanes. The intersection provides lane groups for through and left-turn movements from the primary road and a merging point from the secondary road.A car is stationary toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a car.Independent Actor: A car is moving toward the southwest. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car.Independent Actor: A car is moving toward the southwest. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car.Independent Actor: A truck_bus is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a car.']
+                # sentence = ['The road structure consists of a primary bidirectional road intersected by a smaller road forming a T-junction. The primary road has two lanes in each direction, separated by a physical median, with an additional left-turn lane for one direction near the intersection. The smaller intersecting road connects from one side and merges into the primary road with a single entry lane. Dedicated bike lanes exist in both directions of the primary road, physically separated from the vehicle lanes. The intersection provides lane groups for through and left-turn movements from the primary road and a merging point from the secondary road.A car is stationary toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a car.Independent Actor: A car is moving toward the southwest. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car.Independent Actor: A car is moving toward the southwest. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car.Independent Actor: A truck_bus is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a car.']
                 data = torch.randn((self.opts['bench_batch_size'], self.opts['latent_dim']), device=self.device)
                 edge_index = torch.zeros((2, 15))
 
@@ -109,8 +109,8 @@ class Benchmark:
 
                 edge_index = edge_index.to(dtype=torch.int64, device=self.device)
             
-                embed = torch.tensor(self.embedder.encode(sentence), dtype=torch.float32).to(self.device)
-                output = self.model.decoder_only(data, edge_index, embed)
+                # embed = torch.tensor(self.embedder.encode(sentence), dtype=torch.float32).to(self.device)
+                output = self.model.decoder_only(data, edge_index)
 
 
                 plot_output(output, data, edge_index,
@@ -122,6 +122,6 @@ if __name__ == "__main__":
     random.seed(42) # make sure every time has the same training and validation sets
     opts = read_train_yaml(os.getcwd(), filename = "experiment.yaml")
     bench = Benchmark(opts)
-    bench.run()
-    # bench.test_decoder(100)
+    # bench.run()
+    bench.test_decoder(100)
     

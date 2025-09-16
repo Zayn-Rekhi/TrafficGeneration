@@ -49,7 +49,7 @@ class BlockGenerator(torch.nn.Module):
         self.device = device
         self.latent_dim = opt['latent_dim']
         self.latent_ch = opt['n_ft_dim']
-        
+        self.n_components = opt['n_components']
 
         if opt['aggr'] == 'Mean':
             self.global_pool = torch_geometric.nn.global_mean_pool
@@ -93,11 +93,22 @@ class BlockGenerator(torch.nn.Module):
 
         self.d_ft_init = nn.Linear(self.latent_dim, self.latent_ch * 6)
 
-        # self.aggregate = nn.Linear(self.latent_ch * 6, self.latent_dim)
-        self.aggregate = self.convlayer(self.latent_ch, self.latent_ch)
+        self.aggregate = nn.Linear(self.latent_ch * 6, self.latent_dim)
+        # self.aggregate = self.convlayer(self.latent_ch, self.latent_ch)
 
-        self.fc_mu = nn.Linear(self.latent_dim, self.latent_dim)
-        self.fc_var = nn.Linear(self.latent_dim, self.latent_dim)
+        self.fc_mu = nn.Linear(self.latent_dim, self.latent_dim * self.n_components)
+        self.fc_var = nn.Linear(self.latent_dim, self.latent_dim * self.n_components)
+        self.fc_pi = nn.Linear(self.latent_dim, self.n_components)
+
+        # --- Learned GMM PRIOR: p(y), p(z|y) ---
+        self.prior_mu     = nn.Parameter(torch.zeros(self.n_components, self.latent_dim))      # [K,D]
+        self.prior_logvar = nn.Parameter(torch.zeros(self.n_components, self.latent_dim))      # [K,D]
+        self.prior_logits = nn.Parameter(torch.zeros(self.n_components))                       # [K]
+
+        # Optional sensible init
+        nn.init.normal_(self.prior_mu, std=0.1)
+        self.prior_logvar.data.fill_(0.0)   # log(1)
+        self.prior_logits.data.zero_()      # uniform prior after softmax
 
         # Positioning
         self.d_posx_0 = nn.Linear(self.latent_ch, self.latent_ch)
@@ -114,11 +125,9 @@ class BlockGenerator(torch.nn.Module):
         self.d_sizey_1 = nn.Linear(self.latent_ch, 1)
 
         # Velocity/Direction
-        self.d_velx_0 = nn.Linear(self.latent_ch, self.latent_ch)
-        self.d_velx_1 = nn.Linear(self.latent_ch, 1)
 
-        self.d_vely_0 = nn.Linear(self.latent_ch, self.latent_ch)
-        self.d_vely_1 = nn.Linear(self.latent_ch, 1)
+        self.d_vel_0 = nn.Linear(self.latent_ch, self.latent_ch)
+        self.d_vel_1 = nn.Linear(self.latent_ch, 1)
 
         self.d_act_type_0 = nn.Linear(self.latent_ch, self.latent_ch)
         self.d_act_type_1 = nn.Linear(self.latent_ch, 6)
@@ -137,7 +146,7 @@ class BlockGenerator(torch.nn.Module):
                 m.weight.data = nn.init.xavier_uniform(m.weight.data, gain=nn.init.calculate_gain('relu'))
 
 
-    def reparameterize(self, mu, logvar):
+    def sample(self, mu, logvar, pi_logits, tau=0.5, hard=True):
         """
         Reparameterization trick to sample from N(mu, var) from
         N(0,1).
@@ -145,9 +154,13 @@ class BlockGenerator(torch.nn.Module):
         :param logvar: (Tensor) Standard deviation of the latent Gaussian [B x D]
         :return: (Tensor) [B x D]
         """
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        z = eps * std + mu
+
+        B, K, D = mu.size(0), self.n_components, self.latent_dim
+        y = F.gumbel_softmax(pi_logits, tau=tau, hard=hard, dim=-1)  # <-- logits in
+        std = torch.exp(0.5 * logvar.view(B, K, D)).clamp_min(1e-3)  # floor var
+        eps = torch.randn(B, K, D, device=mu.device)
+        z_k = mu.view(B, K, D) + std * eps                           # [B,K,D]
+        z = torch.sum(z_k * y.unsqueeze(-1), dim=1)                  # [B,D]
         return z
     
     def freeze_encoder(self):
@@ -208,8 +221,12 @@ class BlockGenerator(torch.nn.Module):
 
         latent = self.aggregate(g_embd)
 
+        mu = self.fc_mu(latent)
+        log_var = self.fc_var(latent)
+        pi_logits = self.fc_pi(latent)
+        pi = F.softmax(pi_logits, dim = 1)
 
-        return [mu, log_var]
+        return mu, log_var, pi, pi_logits
 
 
 
@@ -257,21 +274,22 @@ class BlockGenerator(torch.nn.Module):
 
 
     def forward(self, data):
-        mu, log_var = self.encode(data)
-        z = self.reparameterize(mu, log_var)
+        mu, log_var, pi, pi_logits = self.encode(data)
+        z = self.sample(mu, log_var, pi_logits)
         posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx = self.decode(z, data.edge_index)
         pos = torch.cat((posx, posy), 1)
         size = torch.cat((sizex, sizey), 1)
         direc = torch.cat((direc_cos, direc_sin), 1)
         direc = F.normalize(direc, dim=-1)
 
-        return pos, size, vel, acttype, direc, laneidx, log_var, mu
+        return pos, size, vel, acttype, direc, laneidx, log_var, mu, pi, pi_logits
     
     def decoder_only(self, latent, edge_index):
-        posx, posy, sizex, sizey, velx, vely, acttype, direc, laneidx = self.decode(latent, edge_index)
+        posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx = self.decode(latent, edge_index)
         pos = torch.cat((posx, posy), 1)
         size = torch.cat((sizex, sizey), 1)
-        vel = torch.cat((velx, vely), 1)
+        direc = torch.cat((direc_cos, direc_sin), 1)
+        direc = F.normalize(direc, dim=-1)
 
         return pos, size, vel, acttype, direc, laneidx
 
@@ -334,8 +352,9 @@ class AttentionBlockGenerator(BlockGenerator):
 
 
 
-        self.fc_mu = nn.Linear(self.latent_dim, self.latent_dim)
-        self.fc_var = nn.Linear(self.latent_dim, self.latent_dim)
+        self.fc_mu = nn.Linear(self.latent_dim, self.latent_dim * self.n_components)
+        self.fc_var = nn.Linear(self.latent_dim, self.latent_dim * self.n_components)
+        self.fc_pi = nn.Linear(self.latent_dim, self.n_components)
 
 
         if opt['convlayer'] in use_head:
@@ -376,7 +395,15 @@ class AttentionBlockGeneratorWithEmbeddings(AttentionBlockGenerator):
     def __init__(self, opt, device):    
         super().__init__(opt, device)
 
-        self.text_encoder = nn.Linear(opt['embed_size'], opt['latent_dim'])
+        self.text_encoder = nn.Sequential(
+            nn.Linear(opt['embed_size'], opt['latent_dim']),
+            nn.ReLU(),
+            nn.Linear(opt['latent_dim'], opt['latent_dim']),
+            nn.ReLU(),
+            nn.Linear(opt['latent_dim'], opt['latent_dim']),
+            nn.ReLU(),
+            nn.Linear(opt['latent_dim'], opt['latent_dim']),
+        )
 
         self.d_ft_init = nn.Linear(self.latent_dim * 2, self.latent_ch * 6)
 
