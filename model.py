@@ -82,8 +82,9 @@ class BlockGenerator(torch.nn.Module):
         self.type_init = nn.Linear(6, int(self.latent_ch / 2))
         self.direction_init = nn.Linear(2, int(self.latent_ch / 2))
         self.lane_index_init = nn.Linear(10, int(self.latent_ch / 2))
+        self.dummy_flag_init = nn.Linear(1, self.latent_ch)
 
-        self.e_conv1 = self.convlayer(int(self.latent_ch * 3), self.latent_ch)
+        self.e_conv1 = self.convlayer(int(self.latent_ch * 4), self.latent_ch)
         self.e_conv2 = self.convlayer(self.latent_ch, self.latent_ch)
         self.e_conv3 = self.convlayer(self.latent_ch, self.latent_ch)
 
@@ -91,9 +92,10 @@ class BlockGenerator(torch.nn.Module):
         self.d_conv2 = self.convlayer(self.latent_ch, self.latent_ch)
         self.d_conv3 = self.convlayer(self.latent_ch, self.latent_ch)
 
+        # self.d_ft_init = nn.Linear(self.latent_dim, self.latent_ch)
         self.d_ft_init = nn.Linear(self.latent_dim, self.latent_ch * 6)
 
-        self.aggregate = nn.Linear(self.latent_ch * 6, self.latent_dim)
+        self.aggregate = nn.Linear(self.latent_ch * 7, self.latent_dim)
         # self.aggregate = self.convlayer(self.latent_ch, self.latent_ch)
 
         self.fc_mu = nn.Linear(self.latent_dim, self.latent_dim * self.n_components)
@@ -140,6 +142,9 @@ class BlockGenerator(torch.nn.Module):
 
         self.d_lane_index_0 = nn.Linear(self.latent_ch, self.latent_ch)
         self.d_lane_index_1 = nn.Linear(self.latent_ch, 10)
+
+        self.d_dummy_flag_0 = nn.Linear(self.latent_ch, self.latent_ch)
+        self.d_dummy_flag_1 = nn.Linear(self.latent_ch, 1)
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -193,6 +198,7 @@ class BlockGenerator(torch.nn.Module):
 
     def encode(self, data):
         pos_org, size_org, vel_org, actor_type, lane_index, direction, edge_index = data.pos, data.dimen, data.vel, data.actor_type, data.lane_index, data.direction, data.edge_index
+        dummy_flag = data.dummy_flag
 
         direction = F.normalize(direction, dim=-1)
 
@@ -203,10 +209,11 @@ class BlockGenerator(torch.nn.Module):
         act_type = F.relu(self.type_init(actor_type))
         lane_idx = F.relu(self.lane_index_init(lane_index))
         direc = F.relu(self.direction_init(direction))
+        dummy = F.relu(self.dummy_flag_init(dummy_flag))
 
         # n_embd_0 = torch.unsqueeze(pos, dim =0)
         # filler = torch.zeros((pos.shape[0], pos.shape[1] * 3)).to(self.device) # TODO: Replace Later
-        n_embd_0 = torch.cat((pos, size, vel, act_type, lane_idx, direc), 1)       
+        n_embd_0 = torch.cat((pos, size, vel, act_type, lane_idx, direc, dummy), 1)       
 
         n_embd_1 = F.relu(self.e_conv1(n_embd_0, edge_index))
         n_embd_2 = F.relu(self.e_conv2(n_embd_1, edge_index))
@@ -237,8 +244,8 @@ class BlockGenerator(torch.nn.Module):
             z = torch.cat((z, condition), 1)
 
         z = self.d_ft_init(z).view(z.shape[0] * 6, -1)
-
         d_embd_0 = F.relu(z)
+
         d_embd_1 = F.relu(self.d_conv1(d_embd_0, edge_index))
         d_embd_2 = F.relu(self.d_conv2(d_embd_1, edge_index))
         d_embd_3 = F.relu(self.d_conv3(d_embd_2, edge_index))
@@ -270,21 +277,24 @@ class BlockGenerator(torch.nn.Module):
         laneidx = F.relu(self.d_lane_index_0(d_embd_3))
         laneidx = self.d_lane_index_1(laneidx)
 
-        return posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx
+        dummy_flag = F.relu(self.d_dummy_flag_0(d_embd_3))
+        dummy_flag = self.d_dummy_flag_1(dummy_flag)
+
+        return posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx, dummy_flag
 
 
     def forward(self, data):
         mu, log_var, pi, pi_logits = self.encode(data)
         z = self.sample(mu, log_var, pi_logits)
-        posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx = self.decode(z, data.edge_index)
+        posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx, dummy_flag = self.decode(z, data.edge_index)
         pos = torch.cat((posx, posy), 1)
         size = torch.cat((sizex, sizey), 1)
         direc = torch.cat((direc_cos, direc_sin), 1)
         direc = F.normalize(direc, dim=-1)
 
-        return pos, size, vel, acttype, direc, laneidx, log_var, mu, pi, pi_logits
+        return pos, size, vel, acttype, direc, laneidx, dummy_flag, log_var, mu, pi, pi_logits
     
-    def decoder_only(self, latent, edge_index):
+    def decoder_only(self, latent, edge_index, batch_dec):
         posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx = self.decode(latent, edge_index)
         pos = torch.cat((posx, posy), 1)
         size = torch.cat((sizex, sizey), 1)
@@ -334,15 +344,15 @@ class AttentionBlockGenerator(BlockGenerator):
         
 
         if opt['convlayer'] in use_head:
-            self.e_conv1 = self.convlayer(int(self.latent_ch * 3), self.latent_ch, heads = self.head)
+            self.e_conv1 = self.convlayer(int(self.latent_ch * 4), self.latent_ch, heads = self.head)
             self.e_conv2 = self.convlayer(self.latent_ch * self.head, self.latent_ch, heads = self.head)
             self.e_conv3 = self.convlayer(self.latent_ch * self.head, self.latent_ch, heads = self.head)
             self.d_conv2 = self.convlayer(self.latent_ch * self.head, self.latent_ch, heads = self.head)
             self.d_conv3 = self.convlayer(self.latent_ch * self.head, self.latent_ch, heads = self.head)
             
-            self.aggregate = nn.Linear(self.latent_ch * (self.head * 3 + 3), self.latent_dim)
+            self.aggregate = nn.Linear(self.latent_ch * (self.head * 3 + 4), self.latent_dim)
         else:
-            self.e_conv1 = self.convlayer(int(self.latent_ch * 3), self.latent_ch)
+            self.e_conv1 = self.convlayer(int(self.latent_ch * 4), self.latent_ch)
             self.e_conv2 = self.convlayer(self.latent_ch, self.latent_ch)
             self.e_conv3 = self.convlayer(self.latent_ch, self.latent_ch)
             self.d_conv2 = self.convlayer(self.latent_ch, self.latent_ch)
@@ -385,6 +395,9 @@ class AttentionBlockGenerator(BlockGenerator):
             self.d_lane_index_0 = nn.Linear(self.latent_ch * self.head, self.latent_ch)
             self.d_lane_index_1 = nn.Linear(self.latent_ch, 10)
 
+            self.d_dummy_flag_0 = nn.Linear(self.latent_ch * self.head, self.latent_ch)
+            self.d_dummy_flag_1 = nn.Linear(self.latent_ch, 1)
+
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -395,17 +408,19 @@ class AttentionBlockGeneratorWithEmbeddings(AttentionBlockGenerator):
     def __init__(self, opt, device):    
         super().__init__(opt, device)
 
+        self.d_ft_init = nn.Linear(self.latent_dim * 2, self.latent_ch * 6)
+        self.embed_size = opt['embed_size']
+
         self.text_encoder = nn.Sequential(
-            nn.Linear(opt['embed_size'], opt['latent_dim']),
+            nn.Linear(self.embed_size, int(self.embed_size / 2)),
             nn.ReLU(),
-            nn.Linear(opt['latent_dim'], opt['latent_dim']),
+            nn.Linear(int(self.embed_size / 2), int(self.embed_size / 2)),
             nn.ReLU(),
-            nn.Linear(opt['latent_dim'], opt['latent_dim']),
+            nn.Linear(int(self.embed_size / 2), int(self.embed_size / 4)),
             nn.ReLU(),
-            nn.Linear(opt['latent_dim'], opt['latent_dim']),
+            nn.Linear(int(self.embed_size / 4), self.latent_dim),
         )
 
-        self.d_ft_init = nn.Linear(self.latent_dim * 2, self.latent_ch * 6)
 
     
     def encode_text(self, x):
@@ -413,15 +428,17 @@ class AttentionBlockGeneratorWithEmbeddings(AttentionBlockGenerator):
         return x
     
     def forward(self, data):
-        mu, log_var = self.encode(data)
-        z = self.reparameterize(mu, log_var)
+        mu, log_var, pi, pi_logits = self.encode(data)
+        z = self.sample(mu, log_var, pi_logits)
         condition = self.encode_text(data.embeddings)
-        posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx = self.decode(z, data.edge_index, condition)
+
+        posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx, dummy_flag = self.decode(z, data.edge_index, condition)
         pos = torch.cat((posx, posy), 1)
         size = torch.cat((sizex, sizey), 1)
         direc = torch.cat((direc_cos, direc_sin), 1)
+        direc = F.normalize(direc, dim=-1)
 
-        return pos, size, vel, acttype, direc, laneidx, log_var, mu
+        return pos, size, vel, acttype, direc, laneidx, dummy_flag, log_var, mu, pi, pi_logits
     
 
     def decoder_only(self, latent, edge_index, embed):

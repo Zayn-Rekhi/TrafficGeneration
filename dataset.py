@@ -34,6 +34,7 @@ class TrafficDataset(Dataset):
 
     map_actor_types = {
         "Not An Actor (N/A)": 0,
+        "dummy": 0,
         "ego_vehicle": 1,
         "car": 2,
         "truck": 2,
@@ -65,6 +66,7 @@ class TrafficDataset(Dataset):
         self.data_root = root
         self.embedder = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
         self.data, self.embeddings = self.load_data()
+        self.nactors = 6
 
 
     def len(self) -> int:
@@ -134,8 +136,22 @@ class TrafficDataset(Dataset):
                            yaw_sin=actor["yaw_sin"],
                            yaw_cos=actor["yaw_cos"],
                            type=self._encode_type(actor["type"].lower()),
-                           lane_index=self._encode_lane_index(actor["lane_index"]))
-            
+                           lane_index=self._encode_lane_index(actor["lane_index"]),
+                           dummy_actor=False)
+        
+        for _ in range(self.nactors - len(graph.nodes)):
+            graph.add_node(len(graph.nodes),
+                           posx=0.0,
+                           posy=0.0,
+                           width=0.0,
+                           length=0.0,
+                           vel=0.0,
+                           yaw_sin=0.0,
+                           yaw_cos=0.0,
+                           type=self._encode_type("dummy"),
+                           lane_index=self._encode_lane_index(0),
+                           dummy_actor=True)
+
         for idx in range(len(graph.nodes)):
             for idx2 in range(idx + 1, len(graph.nodes)):
                 graph.add_edge(idx, idx2)
@@ -143,9 +159,9 @@ class TrafficDataset(Dataset):
         assert graph.number_of_nodes() == 6, f"graph does not contain 6 nodes: {graph.number_of_nodes()}, IDX: {data}"
         assert graph.number_of_edges() == 15, f"graph does not contain 15 edges: {graph.number_of_edges()}"
 
-        node_pos, node_size, node_vel, actor_type, lane_index, direction, edge_list, node_idx = graph2vector_processed(graph)       
+        node_pos, node_size, node_vel, actor_type, lane_index, direction, dummy_actor, edge_list, node_idx = graph2vector_processed(graph)       
         embed = torch.unsqueeze(torch.tensor(prompt, dtype=torch.float32), dim=0)
-
+        
         return CustomData(edge_index=torch.tensor(edge_list, dtype=torch.int64), 
                           pos=torch.tensor(node_pos, dtype=torch.float32),
                           dimen=torch.tensor(node_size, dtype=torch.float32),
@@ -153,13 +169,14 @@ class TrafficDataset(Dataset):
                           actor_type=torch.tensor(actor_type, dtype=torch.float32),
                           lane_index=torch.tensor(lane_index, dtype=torch.float32),
                           direction=torch.tensor(direction, dtype=torch.float32),
+                          dummy_flag=torch.tensor(dummy_actor, dtype=torch.float32),
                           node_idx=torch.tensor(node_idx, dtype=torch.float32),
                           embeddings=embed,
                           path=img_path,
                           location_id=location_id,
                           px_to_utm=px_to_utm)
     
-
+    
     def _encode_type(self, x):
         one_hot = np.zeros(1 + max(self.map_actor_types.values()))
         one_hot[self.map_actor_types.get(x, 0)] = 1
@@ -199,7 +216,7 @@ class TrafficDataset(Dataset):
 
 if __name__ == "__main__":
 
-    data_root = "/home/zayn/dataset_processed_traffic/inD-dataset-v1.1"
+    data_root = "/home/zayn/dataset_processed_traffic/uniD-dataset-v1.12"
     dataset = TrafficDataset(data_root)
     for idx, data in tqdm(
         enumerate(dataset), desc="Sanity check by iterating over the whole dataset"
@@ -217,8 +234,9 @@ if __name__ == "__main__":
 
     for i, data in enumerate(loader):
         print(i)
-        print(data.embeddings.shape)
-        break
+        print()
+        if i > 30:
+            break
 
     # # ==========================================
     # ## Demo for translating the graphs

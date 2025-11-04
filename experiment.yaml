@@ -1,6 +1,6 @@
 ###############################  Training setting   ############################
 gpu_ids : 
-  - 7 
+  - 6
 
 clean_cache : False
 save_record : False
@@ -8,13 +8,13 @@ is_multigpu : False
 
 save_epoch : 50
 val_ratio : 0.2
-total_epochs : 300
+total_epochs : 400
 start_epoch : 0
 
-dataset_path: "/home/zayn/dataset_processed_traffic/uniD-dataset-v1.1"
+dataset_path: "/home/zayn/dataset_processed_traffic/uniD-dataset-v1.12"
 log_dir: "/home/zayn/genexp/logs"
 
-use_logger: false 
+use_wandb: False 
 wandb_project: "TrafficVAE"
 wandb_name: "Train"
 wandb_entity: "TrafficGeneration"
@@ -22,9 +22,11 @@ save_freq: 5
 freeze_encoder_epoch: 200
 
 ###################################   GlobalMapper setting   #######################################
-generator: false
-attention_generator: true
-attention_generator_embed: false
+generator: False
+attention_generator: False
+attention_generator_embed: True
+
+nactors: 6
 
 attten_net : 
   - 'TransformerConv'
@@ -51,6 +53,7 @@ direction_weight: 2.5
 lane_weight: 2.0
 kld_weight : 4.0
 iou_weight: 0.0001
+dummy_weight: 1.0
 
 direction_lambda: 0.05
 
@@ -61,6 +64,7 @@ include_actor_at_epoch: 100
 include_direction_at_epoch: -1
 include_lane_at_epoch: 100
 include_kld_at_epoch: -1
+include_dummy_at_epoch: -1
 include_iou_at_epoch: 5
 
 
@@ -72,7 +76,7 @@ resume_epoch : 400
 
 ####################################     benchmark setting     #####################################################
 
-bench_config_path: "/home/zayn/dataset_vis_traffic/uniD-dataset-v1.1/distributions/config.json"
+bench_config_path: "/home/zayn/dataset_vis_traffic/uniD-dataset-v1.12/distributions/config.json"
 bench_path: "/home/zayn/genexp/logs/best_val_loss1.pth"
 bench_batch_size: 1
 bench_load_data: true
