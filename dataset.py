@@ -52,21 +52,24 @@ class TrafficDataset(Dataset):
         "+x": 1,
     }
 
-    map_lane_index = {str(x): x for x in range(0, 10)}
+    map_lane_index = {
+        "walkway": 0,
+        "road": 1,
+    }
 
-    def __init__(self, root, transform=None, pre_transform=None) -> None:
+    def __init__(self, root, n_actors) -> None:
         """
         :param data_root: The root directory of the data.
         :param generator: The generator to be used to generate the data.
         :param fp_pg: The file path to the probabilistic grammar.
         """
-        super().__init__(root, transform, pre_transform)
+        super().__init__(root, None, None)
 
         assert os.path.exists(root), f"Data root {root} does not exist."
         self.data_root = root
         self.embedder = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
         self.data, self.embeddings = self.load_data()
-        self.nactors = 6
+        self.n_actors = n_actors
 
 
     def len(self) -> int:
@@ -136,10 +139,9 @@ class TrafficDataset(Dataset):
                            yaw_sin=actor["yaw_sin"],
                            yaw_cos=actor["yaw_cos"],
                            type=self._encode_type(actor["type"].lower()),
-                           lane_index=self._encode_lane_index(actor["lane_index"]),
-                           dummy_actor=False)
+                           lane_index=self._encode_lane_index(actor["lane_index"]))
         
-        for _ in range(self.nactors - len(graph.nodes)):
+        for _ in range(self.n_actors - len(graph.nodes)):
             graph.add_node(len(graph.nodes),
                            posx=0.0,
                            posy=0.0,
@@ -149,8 +151,7 @@ class TrafficDataset(Dataset):
                            yaw_sin=0.0,
                            yaw_cos=0.0,
                            type=self._encode_type("dummy"),
-                           lane_index=self._encode_lane_index(0),
-                           dummy_actor=True)
+                           lane_index=self._encode_lane_index(0))
 
         for idx in range(len(graph.nodes)):
             for idx2 in range(idx + 1, len(graph.nodes)):
@@ -159,7 +160,7 @@ class TrafficDataset(Dataset):
         assert graph.number_of_nodes() == 6, f"graph does not contain 6 nodes: {graph.number_of_nodes()}, IDX: {data}"
         assert graph.number_of_edges() == 15, f"graph does not contain 15 edges: {graph.number_of_edges()}"
 
-        node_pos, node_size, node_vel, actor_type, lane_index, direction, dummy_actor, edge_list, node_idx = graph2vector_processed(graph)       
+        node_pos, node_size, node_vel, actor_type, lane_index, direction, edge_list, node_idx = graph2vector_processed(graph)       
         embed = torch.unsqueeze(torch.tensor(prompt, dtype=torch.float32), dim=0)
         
         return CustomData(edge_index=torch.tensor(edge_list, dtype=torch.int64), 
@@ -169,7 +170,6 @@ class TrafficDataset(Dataset):
                           actor_type=torch.tensor(actor_type, dtype=torch.float32),
                           lane_index=torch.tensor(lane_index, dtype=torch.float32),
                           direction=torch.tensor(direction, dtype=torch.float32),
-                          dummy_flag=torch.tensor(dummy_actor, dtype=torch.float32),
                           node_idx=torch.tensor(node_idx, dtype=torch.float32),
                           embeddings=embed,
                           path=img_path,

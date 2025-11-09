@@ -23,7 +23,7 @@ from itertools import combinations
 from model import *
 
 from dataset import TrafficDataset
-from utils import read_train_yaml, plot_comparison, plot_output, to_boxes
+from utils import read_train_yaml, plot_comparison, plot_output, to_boxes, parse_by_actors
 from sentence_transformers import SentenceTransformer
 from torchvision.ops import generalized_box_iou_loss
 
@@ -87,12 +87,12 @@ def sample_given_embeds_for_plot(model, embeds, k=None, edge_index=None, group_s
         edge_index = make_utriangle_edge_index(B, group_size=group_size, device=device)
 
     # Decode with condition (this mirrors your forward)
-    posx, posy, sizex, sizey, vel, acttype, dcos, dsin, laneidx, dummy = model.decode(z, edge_index, condition=cond)
+    posx, posy, sizex, sizey, vel, acttype, dcos, dsin, laneidx = model.decode(z, edge_index, condition=cond)
     pos   = torch.cat([posx, posy], dim=1)
     size  = torch.cat([sizex, sizey], dim=1)
     direc = F.normalize(torch.cat([dcos, dsin], dim=1), dim=-1)
 
-    output = (pos, size, vel, acttype, direc, laneidx, dummy)
+    output = (pos, size, vel, acttype, direc, laneidx)
     return output, z, edge_index
 
 
@@ -129,12 +129,12 @@ class Benchmark:
         self.model = None
 
         if self.opts['generator']:
-            self.model = BlockGenerator(self.opts, self.device)
+            self.model = SceneGenerator(self.opts, self.device)
         elif self.opts['attention_generator']:
-            self.model = AttentionBlockGenerator(self.opts, self.device)
+            self.model = AttentionSceneGenerator(self.opts, self.device)
         elif self.opts['attention_generator_embed']:
             print("Initialized")
-            self.model = AttentionBlockGeneratorWithEmbeddings(self.opts, self.device)
+            self.model = AttentionSceneGeneratorWithEmbeddings(self.opts, self.device)
         
         assert self.model, "Error in model name"
 
@@ -159,29 +159,32 @@ class Benchmark:
 
                 actor_type = output[3]
                 print("ACTOR TYPES:")
-                print(actor_type, 
-                      data.actor_type)
+                print(torch.argmax(actor_type, axis=1), 
+                      torch.argmax(data.actor_type, axis=1))
 
-                # plot_comparison(data, output, data.edge_index,
-                #                 config=self.config, 
-                #                 opts=self.opts,
-                #                 idx=idx)
+                
+                plot_comparison(data, output, data.edge_index,
+                                config=self.config, 
+                                opts=self.opts,
+                                idx=idx)
 
     
     def test_decoder(self, num_iter):
+        self._setup_data()
+
         with torch.no_grad():
             self.model.eval()
 
             for idx in range(num_iter):
                 # sentence = ['The road layout features a main corridor running through the scene, joined by a secondary approach that meets the corridor at a side junction. The corridor carries traffic in both directions and is divided by a planted separation, with an added turn bay tapering toward the merge area. The side approach arrives from one edge and feeds into the corridor through a single receiving channel. Protected bicycle paths parallel the corridor on each side, set apart from motor lanes by a buffer. The junction organizes movements for continuing straight or turning from the corridor, and provides a merging path from the side approach. A car is stationary facing an unspecified heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a car. Independent Actor: A car is moving toward the northeast. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A car is moving toward an uncertain heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A car is moving toward the southeast. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A truck_bus is moving toward an uncertain heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A car is moving toward an uncertain heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a car.']
                 # sentence = ['Bidirectional road segment with two main lanes separated by a centerline. Diagonal striping on both sides suggests parking bays or no-parking zones. Several small side extensions branch off, resembling minor driveways or access points. A rectangular patch in the center may indicate a manhole or a calibration marker.A bicycle is stationary toward the an unknown direction. It is not located within any defined lane. Its size is not defined, possibly indicating a small or temporary presence. It is ahead and to the right of a car.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a bicycle.Independent Actor: A pedestrian is moving toward the an unknown direction. It is not located within any defined lane. Its size is not defined, possibly indicating a small or temporary presence. It is behind and to the left of a bicycle.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a bicycle.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a bicycle.Independent Actor: A pedestrian is moving toward the an unknown direction. It is not located within any defined lane. Its size is not defined, possibly indicating a small or temporary presence. It is behind and to the left of a bicycle.']
-                sentence = ['4 exist in scenario']
+                sentence = ['3 exist in scenario. car is on road. car is on road. car is on road.']
                 embed = torch.tensor(self.embedder.encode(sentence), dtype=torch.float32, device=self.device)
                 # sample and decode (returns exactly what plot_output expects)
-                output, data, edge_index = sample_given_embeds_for_plot(
+                output, latent, edge_index = sample_given_embeds_for_plot(
                     self.model,
                     embeds=embed,                   # [B, embed_size]
-                    k=9,                         # or int to force a component
+                    k=None,                         # or int to force a component
                     edge_index=None,                # or pass your own
                     group_size=6,
                     device=self.device
@@ -191,13 +194,13 @@ class Benchmark:
                 print("ACTOR TYPES:")
                 print(torch.argmax(actor_type, dim=1))
 
-                # plot_output(
-                #     output, data, edge_index,
-                #     target=next(iter(self.validation_loader)),
-                #     config=self.config,
-                #     opts=self.opts,
-                #     save_dir=os.path.join(self.opts['log_dir'], f"vis_gauss/plot_{idx}.jpg")
-                # )
+                plot_output(
+                    parse_by_actors(output), latent, edge_index,
+                    target=next(iter(self.validation_loader)),
+                    config=self.config,
+                    opts=self.opts,
+                    save_dir=os.path.join(self.opts['log_dir'], f"vis_gauss/plot_{idx}.jpg")
+                )
 
 
 if __name__ == "__main__":
@@ -206,4 +209,5 @@ if __name__ == "__main__":
     bench = Benchmark(opts)
     # bench.run()
     bench.run()
+    # bench.test_decoder(100)
     

@@ -91,7 +91,7 @@ class Runner:
     def _setup_data(self):
         torch.autograd.set_detect_anomaly(True)
 
-        dataset = TrafficDataset(self.opts['dataset_path'])
+        dataset = TrafficDataset(self.opts['dataset_path'], self.opts['nactors'])
         num_data = len(dataset)
 
         val_num = int(num_data * self.opts['val_ratio']) 
@@ -111,11 +111,11 @@ class Runner:
         self.model = None
 
         if self.opts['generator']:
-            self.model = BlockGenerator(self.opts, self.device)
+            self.model = SceneGenerator(self.opts, self.device)
         elif self.opts['attention_generator']:
-            self.model = AttentionBlockGenerator(self.opts, self.device)
+            self.model = AttentionSceneGenerator(self.opts, self.device)
         elif self.opts['attention_generator_embed']:
-            self.model = AttentionBlockGeneratorWithEmbeddings(self.opts, self.device)
+            self.model = AttentionSceneGeneratorWithEmbeddings(self.opts, self.device)
 
 
         assert self.model, "Error in model name"
@@ -133,7 +133,6 @@ class Runner:
             "Directionloss": directional_cosine_loss,
             "Laneloss": nn.CrossEntropyLoss(reduction='sum'),
             "Actloss": nn.CrossEntropyLoss(reduction='sum'),
-            "Dummyloss": nn.CrossEntropyLoss(reduction='sum'),
             "IOUloss": anti_iou_loss,
         }
 
@@ -177,7 +176,6 @@ class Runner:
 
             if self.use_logger and epoch % self.opts["save_freq"] == 0:
                 best_metrics = metrics_recorder.update_best()
-                print(best_metrics)
 
                 if "Loss_Val" in best_metrics:
                     self.logger.save_model(self.model, f"best_val_loss1.pth")
@@ -200,18 +198,17 @@ class Runner:
             data = data.to(self.device)
             self.optimizer.zero_grad()
 
-            pos, size, vel, acttype, direction, laneidx, dummy_flag, log_var, mu, pi, pi_logits = self.model(data)
+            pos, size, vel, acttype, direction, laneidx, log_var, mu, pi, pi_logits = self.model(data)
 
             pos_loss = self.loss_dict['Posloss'](pos, data.pos)
             size_loss = self.loss_dict['Sizeloss'](size, data.dimen)
             vel_loss = self.loss_dict['Velloss'](vel, data.vel)
-            act_loss = self.loss_dict['Actloss'](acttype, data.actor_type)
             direc_loss = self.loss_dict['Directionloss'](direction, data.direction)
-            lane_loss = self.loss_dict['Laneloss'](laneidx, data.lane_index)
-            dummy_loss = self.loss_dict['Dummyloss'](dummy_flag, data.dummy_flag)
+            act_loss = self.loss_dict['Actloss'](acttype, torch.argmax(data.actor_type, axis=1))
+            lane_loss = self.loss_dict['Laneloss'](laneidx, torch.argmax(data.lane_index, axis=1))
             iou_loss = self.loss_dict['IOUloss'](pos, size)
+
             
-            print(dummy_loss)
             B, K, D = mu.size(0), self.model.n_components, self.model.latent_dim
             mu_kd     = mu.view(B, K, D)
             logvar_kd = log_var.view(B, K, D)
@@ -246,9 +243,6 @@ class Runner:
             
             if step > self.opts['include_lane_at_epoch']:
                 loss += self.opts['lane_weight'] * lane_loss
-
-            if step > self.opts['include_dummy_at_epoch']:
-                loss += self.opts['dummy_weight'] * dummy_loss
             
             if step > self.opts['include_iou_at_epoch']:
                loss += self.opts['iou_weight'] * iou_loss
@@ -271,7 +265,6 @@ class Runner:
                     "Direcloss_Train": direc_loss.mean().item(),
                     "Laneloss_Train": lane_loss.item(),
                     "KLDloss_Train": kld_loss.item(),
-                    "Dummyloss_Train": dummy_loss.item(),
                     "IOUloss_Train": iou_loss.item(),
                     "Loss_Train": loss.item(),
                     "Mu_Mean": mu.mean().item(),
@@ -291,7 +284,7 @@ class Runner:
             for idx, data in enumerate(self.validation_loader):
                 data = data.to(self.device)
 
-                pos, size, vel, acttype, direction, laneidx, dummy_flag, log_var, mu, pi, pi_logits = self.model(data)
+                pos, size, vel, acttype, direction, laneidx, log_var, mu, pi, pi_logits = self.model(data)
 
                 pos_loss = self.loss_dict['Posloss'](pos, data.pos) 
                 size_loss = self.loss_dict['Sizeloss'](size, data.dimen) 
@@ -299,7 +292,6 @@ class Runner:
                 act_loss = self.loss_dict['Actloss'](acttype, data.actor_type) 
                 direc_loss = self.loss_dict['Directionloss'](direction, data.direction) 
                 lane_loss = self.loss_dict['Laneloss'](laneidx, data.lane_index) 
-                dummy_loss = self.loss_dict['Dummyloss'](dummy_flag, data.dummy_flag)
                 iou_loss = self.loss_dict['IOUloss'](pos, size)
 
                 B, K, D = mu.size(0), self.model.n_components, self.model.latent_dim
@@ -337,8 +329,6 @@ class Runner:
                 if step > self.opts['include_lane_at_epoch']:
                     loss += self.opts['lane_weight'] * lane_loss
                                 
-                if step > self.opts['include_dummy_at_epoch']:
-                    loss += self.opts['dummy_weight'] * dummy_loss
                 
                 if step > self.opts['include_iou_at_epoch']:
                     loss += self.opts['iou_weight'] * iou_loss
