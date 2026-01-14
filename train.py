@@ -91,7 +91,7 @@ class Runner:
     def _setup_data(self):
         torch.autograd.set_detect_anomaly(True)
 
-        dataset = TrafficDataset(self.opts['dataset_path'], self.opts['nactors'])
+        dataset = TrafficDataset(self.opts['dataset_path'], self.opts['n_actors'])
         num_data = len(dataset)
 
         val_num = int(num_data * self.opts['val_ratio']) 

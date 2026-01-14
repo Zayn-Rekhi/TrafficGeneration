@@ -109,7 +109,7 @@ class Benchmark:
         torch.autograd.set_detect_anomaly(True)
 
         if self.opts['bench_load_data']:
-            dataset = TrafficDataset(self.opts['dataset_path'])
+            dataset = TrafficDataset(self.opts['dataset_path'], self.opts['n_actors'])
             num_data = len(dataset)
 
             val_num = int(num_data * self.opts['val_ratio']) 
@@ -158,7 +158,7 @@ class Benchmark:
                 output = self.model(data)
 
                 actor_type = output[3]
-                print("ACTOR TYPES:")
+
                 print(torch.argmax(actor_type, axis=1), 
                       torch.argmax(data.actor_type, axis=1))
 
@@ -178,8 +178,8 @@ class Benchmark:
             for idx in range(num_iter):
                 # sentence = ['The road layout features a main corridor running through the scene, joined by a secondary approach that meets the corridor at a side junction. The corridor carries traffic in both directions and is divided by a planted separation, with an added turn bay tapering toward the merge area. The side approach arrives from one edge and feeds into the corridor through a single receiving channel. Protected bicycle paths parallel the corridor on each side, set apart from motor lanes by a buffer. The junction organizes movements for continuing straight or turning from the corridor, and provides a merging path from the side approach. A car is stationary facing an unspecified heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a car. Independent Actor: A car is moving toward the northeast. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A car is moving toward an uncertain heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A car is moving toward the southeast. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A truck_bus is moving toward an uncertain heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A car is moving toward an uncertain heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a car.']
                 # sentence = ['Bidirectional road segment with two main lanes separated by a centerline. Diagonal striping on both sides suggests parking bays or no-parking zones. Several small side extensions branch off, resembling minor driveways or access points. A rectangular patch in the center may indicate a manhole or a calibration marker.A bicycle is stationary toward the an unknown direction. It is not located within any defined lane. Its size is not defined, possibly indicating a small or temporary presence. It is ahead and to the right of a car.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a bicycle.Independent Actor: A pedestrian is moving toward the an unknown direction. It is not located within any defined lane. Its size is not defined, possibly indicating a small or temporary presence. It is behind and to the left of a bicycle.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a bicycle.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a bicycle.Independent Actor: A pedestrian is moving toward the an unknown direction. It is not located within any defined lane. Its size is not defined, possibly indicating a small or temporary presence. It is behind and to the left of a bicycle.']
-                sentence = ['3 exist in scenario. car is on road. car is on road. car is on road.']
-                embed = torch.tensor(self.embedder.encode(sentence), dtype=torch.float32, device=self.device)
+                sentence = ['4 actors exist in the scenario. A pedestrian is on the walkway. A car is on the road. A pedestrian is on the road. A car is on the road.']
+                embed = torch.unsqueeze(torch.tensor(self.embedder.encode(sentence), dtype=torch.float32, device=self.device), dim=0)
                 # sample and decode (returns exactly what plot_output expects)
                 output, latent, edge_index = sample_given_embeds_for_plot(
                     self.model,

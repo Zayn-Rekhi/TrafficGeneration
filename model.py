@@ -211,8 +211,12 @@ class SceneGenerator(torch.nn.Module):
         n_embd_0 = torch.cat((pos, size, vel, act_type, lane_idx, direc), 1)       
 
         n_embd_1 = F.relu(self.e_conv1(n_embd_0, edge_index))
+        print(n_embd_1.shape)
         n_embd_2 = F.relu(self.e_conv2(n_embd_1, edge_index))
+        print(n_embd_2.shape)
         n_embd_3 = F.relu(self.e_conv3(n_embd_2, edge_index))
+        print(n_embd_3.shape)
+
         
         g_embd_0 = self.global_pool(n_embd_0, data.batch)
         g_embd_1 = self.global_pool(n_embd_1, data.batch)
@@ -240,10 +244,10 @@ class SceneGenerator(torch.nn.Module):
 
         z = self.d_ft_init(z).view(z.shape[0] * self.n_actors, -1)
         d_embd_0 = F.relu(z)
-
         d_embd_1 = F.relu(self.d_conv1(d_embd_0, edge_index))
         d_embd_2 = F.relu(self.d_conv2(d_embd_1, edge_index))
         d_embd_3 = F.relu(self.d_conv3(d_embd_2, edge_index))
+
             
         posx = F.relu(self.d_posx_0(d_embd_3))
         posx = self.d_posx_1(posx)
@@ -394,46 +398,87 @@ class AttentionSceneGenerator(SceneGenerator):
                 m.weight.data = nn.init.xavier_uniform(m.weight.data, gain=nn.init.calculate_gain('relu'))
 
 
+
 class AttentionSceneGeneratorWithEmbeddings(AttentionSceneGenerator):
     def __init__(self, opt, device):    
         super().__init__(opt, device)
 
         self.d_ft_init = nn.Linear(self.latent_dim * 2, self.latent_ch * self.n_actors)
         self.embed_size = opt['embed_size']
+        self.n_heads = opt.get('text_heads', 4)
+        self.cross_attn_dim = self.latent_dim  # project text embeddings to latent_dim for cross-attention
 
-        self.text_encoder = nn.Sequential(
-            nn.Linear(self.embed_size, int(self.embed_size / 2)),
+        # Project text embeddings to cross-attention dimension
+        self.text_proj = nn.Linear(self.embed_size, self.cross_attn_dim)
+        
+        # Multihead cross-attention layer
+        self.cross_attn = nn.MultiheadAttention(embed_dim=self.cross_attn_dim,
+                                                num_heads=self.n_heads,
+                                                batch_first=True)
+
+        # Optional feedforward after cross-attention
+        self.text_ffn = nn.Sequential(
+            nn.Linear(self.cross_attn_dim, self.cross_attn_dim),
             nn.ReLU(),
-            nn.Linear(int(self.embed_size / 2), int(self.embed_size / 2)),
-            nn.ReLU(),
-            nn.Linear(int(self.embed_size / 2), int(self.embed_size / 4)),
-            nn.ReLU(),
-            nn.Linear(int(self.embed_size / 4), self.latent_dim),
+            nn.Linear(self.cross_attn_dim, self.cross_attn_dim)
         )
-
-
     
-    def encode_text(self, x):
-        x = self.text_encoder(x)
-        return x
-    
+    def encode_text(self, text_embeddings, scene_latent=None):
+        """
+        text_embeddings: [B, L, embed_size] (batch, seq_len, embedding_dim)
+        scene_latent: [B, latent_dim] (optional conditioning query)
+        """
+        text_proj = self.text_proj(text_embeddings)  # [B, L, latent_dim]
+
+        if scene_latent is None:
+            text_out = text_proj.mean(dim=1)  # [B, latent_dim]
+        else:
+            query = scene_latent.unsqueeze(1)  # [B, 1, latent_dim]
+            key = text_proj
+            value = text_proj
+            attn_out, _ = self.cross_attn(query=query, key=key, value=value)
+            attn_out = attn_out.squeeze(1)  # [B, latent_dim]
+            text_out = self.text_ffn(attn_out)  # optional FFN
+
+        return text_out
+
     def forward(self, data):
+        # Encode scene graph
         mu, log_var, pi, pi_logits = self.encode(data)
         z = self.sample(mu, log_var, pi_logits)
-        condition = self.encode_text(data.embeddings)
 
-        posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx = self.decode(z, data.edge_index, condition)
+        # Encode text with cross-attention
+        condition = self.encode_text(data.embeddings.unsqueeze(1), scene_latent=z)
+
+        # Decode conditioned on cross-attended text
+        posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx = self.decode(
+            z, data.edge_index, condition
+        )
+
         pos = torch.cat((posx, posy), 1)
         size = torch.cat((sizex, sizey), 1)
         direc = torch.cat((direc_cos, direc_sin), 1)
         direc = F.normalize(direc, dim=-1)
 
         return pos, size, vel, acttype, direc, laneidx, log_var, mu, pi, pi_logits
-    
 
-    def decoder_only(self, latent, edge_index, embed):
-        condition = self.encode_text(embed)
-        posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx = self.decode(latent, edge_index, condition)
+    def decoder_only(self, latent, edge_index, text_embeddings=None):
+        """
+        Decode from a given latent vector, optionally conditioned on text embeddings.
+        :param latent: [B, latent_dim] latent vector z
+        :param edge_index: graph edge index
+        :param text_embeddings: [B, L, embed_size] optional text embeddings
+        """
+        if text_embeddings is not None:
+            condition = self.encode_text(text_embeddings.unsqueeze(1), scene_latent=latent)
+        else:
+            condition = None
+
+        # Decode conditioned latent
+        posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx = self.decode(
+            latent, edge_index, condition
+        )
+
         pos = torch.cat((posx, posy), 1)
         size = torch.cat((sizex, sizey), 1)
         direc = torch.cat((direc_cos, direc_sin), 1)

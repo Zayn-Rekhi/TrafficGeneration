@@ -1,6 +1,6 @@
 ###############################  Training setting   ############################
 gpu_ids : 
-  - 7
+  - 0
 
 clean_cache : False
 save_record : False
@@ -14,7 +14,7 @@ start_epoch : 0
 dataset_path: "/home/zayn/dataset_processed_traffic/uniD-dataset-v1.12"
 log_dir: "/home/zayn/genexp/logs"
 
-use_wandb: True 
+use_wandb: False 
 wandb_project: "TrafficVAE"
 wandb_name: "Train"
 wandb_entity: "TrafficGeneration"
@@ -36,7 +36,7 @@ convlayer : 'GATConv' #'ResGatedGraphConv' #'SuperGATConv' #'GATv2Conv' # 'GPSCo
 aggr : 'Max'  # 'Mean'
 lr : 0.0001
 n_ft_dim : 512
-head_num : 24  # only for GAT
+head_num : 12  # only for GAT
 batch_size : 200
 latent_dim: 32
 n_components: 10
