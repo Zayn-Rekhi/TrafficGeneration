@@ -64,7 +64,9 @@ def sample_given_embeds_for_plot(model, embeds, k=None, edge_index=None, group_s
     B = embeds.size(0)
 
     # Condition from text (your class already has this)
-    cond = model.encode_text(embeds)  # [B, latent_dim]
+    cond = model.text_proj(embeds) # [B, latent_dim]
+    cond = cond.view((cond.shape[0] * cond.shape[1], cond.shape[2]))
+
 
     # Sample z ~ prior (use learned global GMM if present, else N(0,I))
     if all(hasattr(model, a) for a in ("prior_mu", "prior_logvar", "prior_logits")):
@@ -86,6 +88,7 @@ def sample_given_embeds_for_plot(model, embeds, k=None, edge_index=None, group_s
     if edge_index is None:
         edge_index = make_utriangle_edge_index(B, group_size=group_size, device=device)
 
+    print(z.shape, cond.shape, embeds.shape)
     # Decode with condition (this mirrors your forward)
     posx, posy, sizex, sizey, vel, acttype, dcos, dsin, laneidx = model.decode(z, edge_index, condition=cond)
     pos   = torch.cat([posx, posy], dim=1)
@@ -120,9 +123,6 @@ class Benchmark:
             val_dataset = dataset[val_idx]
 
             self.validation_loader = DataLoader(val_dataset, batch_size=self.opts['bench_batch_size'], shuffle=True, num_workers=8)
-
-        
-
 
 
     def _setup_model(self):
@@ -178,7 +178,14 @@ class Benchmark:
             for idx in range(num_iter):
                 # sentence = ['The road layout features a main corridor running through the scene, joined by a secondary approach that meets the corridor at a side junction. The corridor carries traffic in both directions and is divided by a planted separation, with an added turn bay tapering toward the merge area. The side approach arrives from one edge and feeds into the corridor through a single receiving channel. Protected bicycle paths parallel the corridor on each side, set apart from motor lanes by a buffer. The junction organizes movements for continuing straight or turning from the corridor, and provides a merging path from the side approach. A car is stationary facing an unspecified heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a car. Independent Actor: A car is moving toward the northeast. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A car is moving toward an uncertain heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A car is moving toward the southeast. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A truck_bus is moving toward an uncertain heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A car is moving toward an uncertain heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a car.']
                 # sentence = ['Bidirectional road segment with two main lanes separated by a centerline. Diagonal striping on both sides suggests parking bays or no-parking zones. Several small side extensions branch off, resembling minor driveways or access points. A rectangular patch in the center may indicate a manhole or a calibration marker.A bicycle is stationary toward the an unknown direction. It is not located within any defined lane. Its size is not defined, possibly indicating a small or temporary presence. It is ahead and to the right of a car.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a bicycle.Independent Actor: A pedestrian is moving toward the an unknown direction. It is not located within any defined lane. Its size is not defined, possibly indicating a small or temporary presence. It is behind and to the left of a bicycle.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a bicycle.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a bicycle.Independent Actor: A pedestrian is moving toward the an unknown direction. It is not located within any defined lane. Its size is not defined, possibly indicating a small or temporary presence. It is behind and to the left of a bicycle.']
-                sentence = ['4 actors exist in the scenario. A pedestrian is on the walkway. A car is on the road. A pedestrian is on the road. A car is on the road.']
+                sentence = [
+                    "The ego actor is a pedestrian on the road.",
+                    "A car is far away ahead and to the right of the ego actor on the road.",
+                    "A pedestrian is near ahead and to the right of the ego actor on the walkway.",
+                    "A pedestrian is far away ahead and to the right of the ego actor on the road.",
+                    "",
+                    ""
+                ]
                 embed = torch.unsqueeze(torch.tensor(self.embedder.encode(sentence), dtype=torch.float32, device=self.device), dim=0)
                 # sample and decode (returns exactly what plot_output expects)
                 output, latent, edge_index = sample_given_embeds_for_plot(
@@ -208,6 +215,6 @@ if __name__ == "__main__":
     opts = read_train_yaml(os.getcwd(), filename = "experiment.yaml")
     bench = Benchmark(opts)
     # bench.run()
-    bench.run()
-    # bench.test_decoder(100)
+    # bench.run()
+    bench.test_decoder(100)
     

@@ -42,6 +42,18 @@ class NaiveMsgPass(MessagePassing):
         return tmp
 
 
+class FiLM(torch.nn.Module):
+    def __init__(self, cond_dim, inp_dim):
+        super().__init__()
+        self.layer = nn.Sequential(
+            nn.Linear(cond_dim, 2 * inp_dim)
+        )
+    
+    def forward(self, x, condition):
+        out = self.layer(condition)
+        gamma, beta = out.chunk(2, dim=-1)
+        return gamma * x + beta
+
 
 class SceneGenerator(torch.nn.Module):
     def __init__(self, opt, device):    
@@ -209,13 +221,9 @@ class SceneGenerator(torch.nn.Module):
         # n_embd_0 = torch.unsqueeze(pos, dim =0)
         # filler = torch.zeros((pos.shape[0], pos.shape[1] * 3)).to(self.device) # TODO: Replace Later
         n_embd_0 = torch.cat((pos, size, vel, act_type, lane_idx, direc), 1)       
-
         n_embd_1 = F.relu(self.e_conv1(n_embd_0, edge_index))
-        print(n_embd_1.shape)
         n_embd_2 = F.relu(self.e_conv2(n_embd_1, edge_index))
-        print(n_embd_2.shape)
         n_embd_3 = F.relu(self.e_conv3(n_embd_2, edge_index))
-        print(n_embd_3.shape)
 
         
         g_embd_0 = self.global_pool(n_embd_0, data.batch)
@@ -237,16 +245,14 @@ class SceneGenerator(torch.nn.Module):
 
 
     def decode(self, z, edge_index, condition=None):
-
-
-        if isinstance(condition, torch.Tensor):
-            z = torch.cat((z, condition), 1)
-
         z = self.d_ft_init(z).view(z.shape[0] * self.n_actors, -1)
+
         d_embd_0 = F.relu(z)
         d_embd_1 = F.relu(self.d_conv1(d_embd_0, edge_index))
         d_embd_2 = F.relu(self.d_conv2(d_embd_1, edge_index))
         d_embd_3 = F.relu(self.d_conv3(d_embd_2, edge_index))
+       
+
 
             
         posx = F.relu(self.d_posx_0(d_embd_3))
@@ -392,7 +398,6 @@ class AttentionSceneGenerator(SceneGenerator):
             self.d_lane_index_1 = nn.Linear(self.latent_ch, 2)
 
 
-
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 m.weight.data = nn.init.xavier_uniform(m.weight.data, gain=nn.init.calculate_gain('relu'))
@@ -403,52 +408,36 @@ class AttentionSceneGeneratorWithEmbeddings(AttentionSceneGenerator):
     def __init__(self, opt, device):    
         super().__init__(opt, device)
 
-        self.d_ft_init = nn.Linear(self.latent_dim * 2, self.latent_ch * self.n_actors)
+        self.d_ft_init = nn.Linear(self.latent_dim, self.latent_ch * self.n_actors)
         self.embed_size = opt['embed_size']
-        self.n_heads = opt.get('text_heads', 4)
-        self.cross_attn_dim = self.latent_dim  # project text embeddings to latent_dim for cross-attention
+        self.cross_attn_dim = self.head * self.latent_ch
 
-        # Project text embeddings to cross-attention dimension
         self.text_proj = nn.Linear(self.embed_size, self.cross_attn_dim)
         
-        # Multihead cross-attention layer
         self.cross_attn = nn.MultiheadAttention(embed_dim=self.cross_attn_dim,
-                                                num_heads=self.n_heads,
+                                                num_heads=self.head,
                                                 batch_first=True)
 
-        # Optional feedforward after cross-attention
         self.text_ffn = nn.Sequential(
             nn.Linear(self.cross_attn_dim, self.cross_attn_dim),
             nn.ReLU(),
             nn.Linear(self.cross_attn_dim, self.cross_attn_dim)
         )
+
+        self.condition_enc_layer = FiLM(self.cross_attn_dim, self.cross_attn_dim)
+        self.condition_dec_layer = FiLM(self.cross_attn_dim, self.cross_attn_dim)
     
-    def encode_text(self, text_embeddings, scene_latent=None):
-        """
-        text_embeddings: [B, L, embed_size] (batch, seq_len, embedding_dim)
-        scene_latent: [B, latent_dim] (optional conditioning query)
-        """
-        text_proj = self.text_proj(text_embeddings)  # [B, L, latent_dim]
-
-        if scene_latent is None:
-            text_out = text_proj.mean(dim=1)  # [B, latent_dim]
-        else:
-            query = scene_latent.unsqueeze(1)  # [B, 1, latent_dim]
-            key = text_proj
-            value = text_proj
-            attn_out, _ = self.cross_attn(query=query, key=key, value=value)
-            attn_out = attn_out.squeeze(1)  # [B, latent_dim]
-            text_out = self.text_ffn(attn_out)  # optional FFN
-
-        return text_out
 
     def forward(self, data):
+        condition = self.text_proj(data.embeddings)
+        condition = condition.view((condition.shape[0] * condition.shape[1], condition.shape[2]))
+
         # Encode scene graph
-        mu, log_var, pi, pi_logits = self.encode(data)
+        mu, log_var, pi, pi_logits = self.encode(data, condition)
         z = self.sample(mu, log_var, pi_logits)
 
         # Encode text with cross-attention
-        condition = self.encode_text(data.embeddings.unsqueeze(1), scene_latent=z)
+
 
         # Decode conditioned on cross-attended text
         posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx = self.decode(
@@ -470,7 +459,7 @@ class AttentionSceneGeneratorWithEmbeddings(AttentionSceneGenerator):
         :param text_embeddings: [B, L, embed_size] optional text embeddings
         """
         if text_embeddings is not None:
-            condition = self.encode_text(text_embeddings.unsqueeze(1), scene_latent=latent)
+            condition = self.text_proj(text_embeddings.unsqueeze(1)).repeat_interleave(self.n_actors, dim=0)
         else:
             condition = None
 
@@ -485,3 +474,79 @@ class AttentionSceneGeneratorWithEmbeddings(AttentionSceneGenerator):
         direc = F.normalize(direc, dim=-1)
 
         return pos, size, vel, acttype, direc, laneidx
+    
+    def encode(self, data, condition):
+        pos_org, size_org, vel_org, actor_type, lane_index, direction, edge_index = data.pos, data.dimen, data.vel, data.actor_type, data.lane_index, data.direction, data.edge_index
+
+        direction = F.normalize(direction, dim=-1)
+
+        pos = F.relu(self.pos_init(pos_org))
+        size = F.relu(self.size_init(size_org))
+        vel = F.relu(self.vel_init(vel_org))
+
+        act_type = F.relu(self.type_init(actor_type))
+        lane_idx = F.relu(self.lane_index_init(lane_index))
+        direc = F.relu(self.direction_init(direction))
+
+        # n_embd_0 = torch.unsqueeze(pos, dim =0)
+        # filler = torch.zeros((pos.shape[0], pos.shape[1] * 3)).to(self.device) # TODO: Replace Later
+        n_embd_0 = torch.cat((pos, size, vel, act_type, lane_idx, direc), 1)       
+      
+        n_embd_1 = F.relu(self.condition_enc_layer(self.e_conv1(n_embd_0, edge_index), condition))
+        n_embd_2 = F.relu(self.condition_enc_layer(self.e_conv2(n_embd_1, edge_index), condition))
+        n_embd_3 = F.relu(self.condition_enc_layer(self.e_conv3(n_embd_2, edge_index), condition))
+
+        
+        g_embd_0 = self.global_pool(n_embd_0, data.batch)
+        g_embd_1 = self.global_pool(n_embd_1, data.batch)
+        g_embd_2 = self.global_pool(n_embd_2, data.batch)
+        g_embd_3 = self.global_pool(n_embd_3, data.batch)
+
+        g_embd = torch.cat((g_embd_0, g_embd_1, g_embd_2, g_embd_3), 1)
+
+        latent = self.aggregate(g_embd)
+
+        mu = self.fc_mu(latent)
+        log_var = self.fc_var(latent)
+        pi_logits = self.fc_pi(latent)
+        pi = F.softmax(pi_logits, dim = 1)
+
+        return mu, log_var, pi, pi_logits
+    
+    def decode(self, z, edge_index, condition=None):
+        z = self.d_ft_init(z).view(z.shape[0] * self.n_actors, -1)
+
+        d_embd_0 = F.relu(z)
+        d_embd_1 = F.relu(self.condition_dec_layer(self.d_conv1(d_embd_0, edge_index), condition))
+        d_embd_2 = F.relu(self.condition_dec_layer(self.d_conv2(d_embd_1, edge_index), condition))
+        d_embd_3 = F.relu(self.condition_dec_layer(self.d_conv3(d_embd_2, edge_index), condition))
+
+
+        posx = F.relu(self.d_posx_0(d_embd_3))
+        posx = self.d_posx_1(posx)
+
+        posy = F.relu(self.d_posy_0(d_embd_3))
+        posy = self.d_posy_1(posy)
+
+        sizex = F.relu(self.d_sizex_0(d_embd_3))
+        sizex = self.d_sizex_1(sizex)
+
+        sizey = F.relu(self.d_sizey_0(d_embd_3))
+        sizey = self.d_sizey_1(sizey)
+
+        vel = F.relu(self.d_vel_0(d_embd_3))
+        vel = self.d_vel_1(vel)
+
+        acttype = F.relu(self.d_act_type_0(d_embd_3))
+        acttype = self.d_act_type_1(acttype)
+
+        direc_cos = F.relu(self.d_direction_cos_0(d_embd_3))
+        direc_cos = self.d_direction_cos_1(direc_cos)
+
+        direc_sin = F.relu(self.d_direction_sin_0(d_embd_3))
+        direc_sin = self.d_direction_sin_1(direc_sin)
+
+        laneidx = F.relu(self.d_lane_index_0(d_embd_3))
+        laneidx = self.d_lane_index_1(laneidx)
+
+        return posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx

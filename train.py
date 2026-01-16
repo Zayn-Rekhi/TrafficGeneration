@@ -7,8 +7,6 @@ from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader, DataListLoader
 from torch_geometric.data import Batch
 
-from torchvision.ops import distance_box_iou_loss
-
 from logger import Logger, MetricRecorder
 
 import os
@@ -27,27 +25,19 @@ warnings.filterwarnings("ignore")
 
 
 
-def anti_iou_loss(out_pos, out_size):
-    out_boxes = to_boxes(out_size, out_pos)  # shape: (N, 4)
-    group_size = 6
-    N = out_boxes.size(0)
+def anti_overlap_loss(pos, size, group_size):
+    pos = pos.view(pos.shape[0] // group_size, group_size, pos.shape[1])
+    size = size.view(size.shape[0] // group_size, group_size, size.shape[1])
 
-    assert N % group_size == 0, "Total number of boxes must be divisible by group size"
+    center_delta = (pos.unsqueeze(1) - pos.unsqueeze(2)).abs()
+    avg_size = (size.unsqueeze(1) + size.unsqueeze(2)) / 2
 
-    out_boxes = out_boxes.view(-1, group_size, 4)  # B groups of 6
+    penetration = torch.clamp(center_delta - avg_size, min=0.0)
+    collision = penetration[..., 0] * penetration[..., 1]
+    mask = ~torch.eye(pos.size(1), device=pos.device, dtype=torch.bool)
+    collision = collision[:, mask]
 
-    b1 = out_boxes.unsqueeze(2)  # (B, 6, 1, 4)
-    b2 = out_boxes.unsqueeze(1)  # (B, 1, 6, 4)
-    pair1 = b1.expand(-1, group_size, group_size, -1).reshape(-1, 4)  # (B*36, 4)
-    pair2 = b2.expand(-1, group_size, group_size, -1).reshape(-1, 4)  # (B*36, 4)
-
-    pairwise_diou = distance_box_iou_loss(pair1, pair2).view(-1, group_size, group_size)  # (B, 6, 6)
-
-    device = out_boxes.device
-    mask = ~torch.eye(group_size, dtype=torch.bool, device=device)  # (6, 6)
-    pairwise_diou = pairwise_diou[:, mask].view(-1, group_size * (group_size - 1))  # (B, 30)
-
-    return pairwise_diou.mean()
+    return collision.sum()
 
 
 def directional_cosine_loss(pred, target):
@@ -133,7 +123,7 @@ class Runner:
             "Directionloss": directional_cosine_loss,
             "Laneloss": nn.CrossEntropyLoss(reduction='sum'),
             "Actloss": nn.CrossEntropyLoss(reduction='sum'),
-            "IOUloss": anti_iou_loss,
+            "OverlapLoss": anti_overlap_loss,
         }
 
         self.use_logger = self.opts['use_wandb']
@@ -206,7 +196,7 @@ class Runner:
             direc_loss = self.loss_dict['Directionloss'](direction, data.direction)
             act_loss = self.loss_dict['Actloss'](acttype, torch.argmax(data.actor_type, axis=1))
             lane_loss = self.loss_dict['Laneloss'](laneidx, torch.argmax(data.lane_index, axis=1))
-            iou_loss = self.loss_dict['IOUloss'](pos, size)
+            overlap_loss = self.loss_dict['OverlapLoss'](pos, size, self.opts['n_actors'])
 
             
             B, K, D = mu.size(0), self.model.n_components, self.model.latent_dim
@@ -244,8 +234,8 @@ class Runner:
             if step > self.opts['include_lane_at_epoch']:
                 loss += self.opts['lane_weight'] * lane_loss
             
-            if step > self.opts['include_iou_at_epoch']:
-               loss += self.opts['iou_weight'] * iou_loss
+            if step > self.opts['include_overlap_at_epoch']:
+               loss += self.opts['overlap_weight'] * overlap_loss
             
             if step > self.opts['include_kld_at_epoch']:
                 loss += self.opts['kld_weight'] * kld_loss
@@ -265,7 +255,7 @@ class Runner:
                     "Direcloss_Train": direc_loss.mean().item(),
                     "Laneloss_Train": lane_loss.item(),
                     "KLDloss_Train": kld_loss.item(),
-                    "IOUloss_Train": iou_loss.item(),
+                    "OverlapLoss_Train": overlap_loss.item(),
                     "Loss_Train": loss.item(),
                     "Mu_Mean": mu.mean().item(),
                     "Mu_Std": mu.std().item(),
@@ -292,7 +282,7 @@ class Runner:
                 act_loss = self.loss_dict['Actloss'](acttype, data.actor_type) 
                 direc_loss = self.loss_dict['Directionloss'](direction, data.direction) 
                 lane_loss = self.loss_dict['Laneloss'](laneidx, data.lane_index) 
-                iou_loss = self.loss_dict['IOUloss'](pos, size)
+                overlap_loss = self.loss_dict['OverlapLoss'](pos, size, self.opts['n_actors'])
 
                 B, K, D = mu.size(0), self.model.n_components, self.model.latent_dim
                 mu_kd     = mu.view(B, K, D)
@@ -328,10 +318,10 @@ class Runner:
                 
                 if step > self.opts['include_lane_at_epoch']:
                     loss += self.opts['lane_weight'] * lane_loss
-                                
+            
                 
-                if step > self.opts['include_iou_at_epoch']:
-                    loss += self.opts['iou_weight'] * iou_loss
+                if step > self.opts['include_overlap_at_epoch']:
+                    loss += self.opts['overlap_weight'] * overlap_loss
                 
                 if step > self.opts['include_kld_at_epoch']:
                     loss += self.opts['kld_weight'] * kld_loss
@@ -347,7 +337,7 @@ class Runner:
                         "Direcloss_Val": direc_loss.mean().item(),
                         "Laneloss_Val": lane_loss.item(),
                         "KLDloss_Val": kld_loss.item(),
-                        # "IOUSloss_Val": iou_loss.item(),
+                        # "IOUSloss_Val": overlap_loss.item(),
                         "Loss_Val": loss.item(),
                     }
                 )

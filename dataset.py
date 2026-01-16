@@ -76,8 +76,9 @@ class TrafficDataset(Dataset):
         return len(self.data)
 
     def get(self, idx: int):
+        start, end = int(idx * 6), int((idx + 1) * 6)
         return self.construct_graph_from_data(self.data[idx], 
-                                              self.embeddings[idx])
+                                              self.embeddings[start:end])
         # graph, features, mask, adjacency matrix
 
     def load_data(self):
@@ -105,7 +106,7 @@ class TrafficDataset(Dataset):
                 data = json.load(f)
 
             all_data.append(data)
-            all_embeddings.append(data['prompt'])
+            all_embeddings.extend(data['prompt'])
 
         all_embeddings = self.embedder.encode(all_embeddings)
         
@@ -171,6 +172,7 @@ class TrafficDataset(Dataset):
                           lane_index=torch.tensor(lane_index, dtype=torch.float32),
                           direction=torch.tensor(direction, dtype=torch.float32),
                           node_idx=torch.tensor(node_idx, dtype=torch.float32),
+                          prompt=data['prompt'],
                           embeddings=embed,
                           path=img_path,
                           location_id=location_id,
@@ -217,7 +219,7 @@ class TrafficDataset(Dataset):
 if __name__ == "__main__":
 
     data_root = "/home/zayn/dataset_processed_traffic/uniD-dataset-v1.12"
-    dataset = TrafficDataset(data_root)
+    dataset = TrafficDataset(data_root, 6)
     for idx, data in tqdm(
         enumerate(dataset), desc="Sanity check by iterating over the whole dataset"
     ):
@@ -229,12 +231,12 @@ if __name__ == "__main__":
     #     # print(adjacency_matrix)
 
     loader = DataLoader(
-        dataset, batch_size=10, num_workers=1
+        dataset, batch_size=200, num_workers=1
     )
 
     for i, data in enumerate(loader):
         print(i)
-        print()
+        print(data['embeddings'].shape)
         if i > 30:
             break
 

@@ -10,6 +10,8 @@ from matplotlib.cm import get_cmap
 from matplotlib.patches import Rectangle
 import matplotlib.image as mpimg
 
+import textwrap
+
 import matplotlib as mpl
 import torch
 
@@ -204,7 +206,12 @@ def plot_comparison(target, output, edge_index, config, opts, idx):
     ax2 = plt.subplot(1, 2, 2)
     draw(ax2, pos, size, vel, edge_index, direc, acttype, laneidx, 'Model Prediction', cmap, target.path, target.location_id, target.px_to_utm, opts['uniD_config'])
 
-    plt.tight_layout()
+    title = target.prompt[0]
+    wrapped_title = "\n".join(textwrap.wrap(".".join(title), width=80))
+
+    plt.suptitle(wrapped_title, fontsize=14, y=0.98)
+    plt.tight_layout(rect=[0, 0, 1, 0.90])
+
 
     if save_dir:
         print("Saved: ", save_dir)
