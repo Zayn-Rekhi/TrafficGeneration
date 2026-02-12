@@ -408,7 +408,10 @@ class AttentionSceneGeneratorWithEmbeddings(AttentionSceneGenerator):
     def __init__(self, opt, device):    
         super().__init__(opt, device)
 
+        self.fc_mu = nn.Linear(self.latent_dim, self.latent_dim)
+        self.fc_var = nn.Linear(self.latent_dim, self.latent_dim)
         self.d_ft_init = nn.Linear(self.latent_dim, self.latent_ch * self.n_actors)
+
         self.embed_size = opt['embed_size']
         self.cross_attn_dim = self.head * self.latent_ch
 
@@ -427,16 +430,19 @@ class AttentionSceneGeneratorWithEmbeddings(AttentionSceneGenerator):
         self.condition_enc_layer = FiLM(self.cross_attn_dim, self.cross_attn_dim)
         self.condition_dec_layer = FiLM(self.cross_attn_dim, self.cross_attn_dim)
     
+    def reparameterize(self, mu, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        z = eps * std + mu
+        return z
 
     def forward(self, data):
         condition = self.text_proj(data.embeddings)
         condition = condition.view((condition.shape[0] * condition.shape[1], condition.shape[2]))
 
         # Encode scene graph
-        mu, log_var, pi, pi_logits = self.encode(data, condition)
-        z = self.sample(mu, log_var, pi_logits)
-
-        # Encode text with cross-attention
+        mu, log_var = self.encode(data, condition)
+        z = self.reparameterize(mu, log_var)
 
 
         # Decode conditioned on cross-attended text
@@ -449,7 +455,7 @@ class AttentionSceneGeneratorWithEmbeddings(AttentionSceneGenerator):
         direc = torch.cat((direc_cos, direc_sin), 1)
         direc = F.normalize(direc, dim=-1)
 
-        return pos, size, vel, acttype, direc, laneidx, log_var, mu, pi, pi_logits
+        return pos, size, vel, acttype, direc, laneidx, log_var, mu
 
     def decoder_only(self, latent, edge_index, text_embeddings=None):
         """
@@ -491,10 +497,11 @@ class AttentionSceneGeneratorWithEmbeddings(AttentionSceneGenerator):
         # n_embd_0 = torch.unsqueeze(pos, dim =0)
         # filler = torch.zeros((pos.shape[0], pos.shape[1] * 3)).to(self.device) # TODO: Replace Later
         n_embd_0 = torch.cat((pos, size, vel, act_type, lane_idx, direc), 1)       
-      
+
         n_embd_1 = F.relu(self.condition_enc_layer(self.e_conv1(n_embd_0, edge_index), condition))
         n_embd_2 = F.relu(self.condition_enc_layer(self.e_conv2(n_embd_1, edge_index), condition))
         n_embd_3 = F.relu(self.condition_enc_layer(self.e_conv3(n_embd_2, edge_index), condition))
+
 
         
         g_embd_0 = self.global_pool(n_embd_0, data.batch)
@@ -508,18 +515,24 @@ class AttentionSceneGeneratorWithEmbeddings(AttentionSceneGenerator):
 
         mu = self.fc_mu(latent)
         log_var = self.fc_var(latent)
-        pi_logits = self.fc_pi(latent)
-        pi = F.softmax(pi_logits, dim = 1)
 
-        return mu, log_var, pi, pi_logits
+        return mu, log_var
     
     def decode(self, z, edge_index, condition=None):
+
         z = self.d_ft_init(z).view(z.shape[0] * self.n_actors, -1)
 
         d_embd_0 = F.relu(z)
+        print(d_embd_0.shape)
         d_embd_1 = F.relu(self.condition_dec_layer(self.d_conv1(d_embd_0, edge_index), condition))
+        print(d_embd_1.shape)
+
         d_embd_2 = F.relu(self.condition_dec_layer(self.d_conv2(d_embd_1, edge_index), condition))
+        print(d_embd_2.shape)
+
         d_embd_3 = F.relu(self.condition_dec_layer(self.d_conv3(d_embd_2, edge_index), condition))
+        print(d_embd_3.shape)
+
 
 
         posx = F.relu(self.d_posx_0(d_embd_3))

@@ -178,14 +178,23 @@ class Benchmark:
             for idx in range(num_iter):
                 # sentence = ['The road layout features a main corridor running through the scene, joined by a secondary approach that meets the corridor at a side junction. The corridor carries traffic in both directions and is divided by a planted separation, with an added turn bay tapering toward the merge area. The side approach arrives from one edge and feeds into the corridor through a single receiving channel. Protected bicycle paths parallel the corridor on each side, set apart from motor lanes by a buffer. The junction organizes movements for continuing straight or turning from the corridor, and provides a merging path from the side approach. A car is stationary facing an unspecified heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a car. Independent Actor: A car is moving toward the northeast. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A car is moving toward an uncertain heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A car is moving toward the southeast. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A truck_bus is moving toward an uncertain heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is ahead and to the right of a car. Independent Actor: A car is moving toward an uncertain heading. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a car.']
                 # sentence = ['Bidirectional road segment with two main lanes separated by a centerline. Diagonal striping on both sides suggests parking bays or no-parking zones. Several small side extensions branch off, resembling minor driveways or access points. A rectangular patch in the center may indicate a manhole or a calibration marker.A bicycle is stationary toward the an unknown direction. It is not located within any defined lane. Its size is not defined, possibly indicating a small or temporary presence. It is ahead and to the right of a car.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a bicycle.Independent Actor: A pedestrian is moving toward the an unknown direction. It is not located within any defined lane. Its size is not defined, possibly indicating a small or temporary presence. It is behind and to the left of a bicycle.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a bicycle.Independent Actor: A car is moving toward the an unknown direction. It is positioned within a designated traffic lane. It has a defined physical presence on the road. It is behind and to the left of a bicycle.Independent Actor: A pedestrian is moving toward the an unknown direction. It is not located within any defined lane. Its size is not defined, possibly indicating a small or temporary presence. It is behind and to the left of a bicycle.']
+                # sentence = [
+                #     "The ego actor is a car on the road and is moving at medium speed.",
+                #     "A bicycle is far away ahead of the ego actor on the road, is moving at low speed, and is heading in the same direction as the ego.",
+                #     "A car is far away ahead of the ego actor on the road, is moving at low speed, and is heading in the same direction as the ego.",
+                #     "A pedestrian is far away ahead of the ego actor on the walkway, is moving at low speed, and is heading in the same direction as the ego.",
+                #     "",
+                #     ""
+                # ]
                 sentence = [
-                    "The ego actor is a pedestrian on the road.",
-                    "A car is far away ahead and to the right of the ego actor on the road.",
-                    "A pedestrian is near ahead and to the right of the ego actor on the walkway.",
-                    "A pedestrian is far away ahead and to the right of the ego actor on the road.",
-                    "",
+                    "The ego actor is a car on the road and is stopped.",
+                    "A pedestrian is near behind and to the left of the ego actor on the walkway, is moving at low speed, and is heading in the opposite direction of the ego.",
+                    "A pedestrian is far away behind and to the left of the ego actor on the walkway, is moving at low speed, and is heading in the opposite direction of the ego.",
+                    "A car is far away behind and to the left of the ego actor on the road, is moving at high speed, and is heading in the opposite direction of the ego.",
+                    "A van is near ahead and to the right of the ego actor on the walkway, is stopped, and is heading in the same direction as the ego.",
                     ""
                 ]
+
                 embed = torch.unsqueeze(torch.tensor(self.embedder.encode(sentence), dtype=torch.float32, device=self.device), dim=0)
                 # sample and decode (returns exactly what plot_output expects)
                 output, latent, edge_index = sample_given_embeds_for_plot(
@@ -206,6 +215,7 @@ class Benchmark:
                     target=next(iter(self.validation_loader)),
                     config=self.config,
                     opts=self.opts,
+                    sentence=sentence,
                     save_dir=os.path.join(self.opts['log_dir'], f"vis_gauss/plot_{idx}.jpg")
                 )
 

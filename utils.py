@@ -2,6 +2,7 @@ import networkx as nx
 import numpy as np
 import os
 import yaml
+import math
 import io
 from PIL import Image
 
@@ -105,22 +106,21 @@ def draw(ax, pos, size, vel, edge_index, direction, actor_type, lane_index, titl
     #     ax.plot(x, y, color='lightgray', linewidth=0.5, zorder=1)
 
     # Marker shapes for up to 5 actor types
-    marker_map = {0: 'o', 1: 's', 2: '^', 3: 'D', 4: 'P'}
+    marker_map = {2: ('^', 'Car'), 3: ('D', 'Bus'), 4: ('P', 'Pedestrian'), 5: ('H', 'Bicycle')}
 
     for i in range(len(pos)):
-        color = cmap(lane_index[i] % 10 / 10)
+        color = cmap(i % 6 / 6)
         center_x, center_y = pos[i]
         width, length = size[i]
 
         width = (width / px_to_utm) / config["scale_down_factor"]
         length = (length / px_to_utm) / config["scale_down_factor"]
 
-        print(center_x, center_y, px_to_utm, config["scale_down_factor"])
+        # print(center_x, center_y, px_to_utm, config["scale_down_factor"])
 
         center_x = (center_x / px_to_utm) / config["scale_down_factor"]
         center_y = (-center_y / px_to_utm) / config["scale_down_factor"]
         
-        print(center_x, center_y)
         marker = marker_map.get(actor_type[i], 'x')
 
         direction_x, direction_y = direction[i]
@@ -130,14 +130,30 @@ def draw(ax, pos, size, vel, edge_index, direction, actor_type, lane_index, titl
         anchor = (center_x - length // 2,
                   center_y - width // 2)
 
-        print(anchor, center_x, center_y, length, width )
+        # print(anchor, center_x, center_y, length, width )
 
 
-        if width == 0 and length == 0:
-            ax.scatter(center_x, center_y, marker=marker, color=color, edgecolors='k', s=40, zorder=4)
+        if abs(width) < 0.5 and abs(length) < 0.5:
+            dirx = direction[0][0]
+            diry = direction[0][1]
+
+            dx = pos[i][0] - pos[0][0]
+            dy = pos[i][1] - pos[0][1]
+
+            angle = -math.degrees(
+                math.atan2(
+                    dirx * dy - diry * dx,
+                    dirx * dx + diry * dy
+                )
+            )
+            print(f"Angle: {angle}\nActor Position: {pos[i]}\nActor Direction: {direction[i]}")
+            print(f"Ego Position: {pos[0]}\nEgo Direction: {direction[0]}")
+            print(f"Current Direction: {(dirx, diry)} Delta Pos: {(dx, dy)}")
+            print()
+            ax.scatter(center_x, center_y, marker=marker[0], label=f"{marker[1]} on {i}", color=color, edgecolors='k', s=40, zorder=4)
         else:
             rect = Rectangle(anchor, length, width,
-                            linewidth=1, edgecolor='k', facecolor='blue', zorder=3)
+                            linewidth=1, edgecolor='k', facecolor='blue' if i > 0 else 'yellow', zorder=3)
             t2 = mpl.transforms.Affine2D().rotate_deg_around(center_x, center_y, yaw) + ax.transData
             rect.set_transform(t2)
             ax.add_patch(rect)
@@ -149,6 +165,8 @@ def draw(ax, pos, size, vel, edge_index, direction, actor_type, lane_index, titl
     ax.set_title(title)
     ax.set_xlabel("X Axis (Front) - IMU")
     ax.set_ylabel("Y Axis (Left) - IMU")
+    ax.legend(loc='upper left')
+
 
     # ax.set_xlim(0, image.shape[1])
     # ax.set_ylim(image.shape[0], 0)
@@ -207,7 +225,7 @@ def plot_comparison(target, output, edge_index, config, opts, idx):
     draw(ax2, pos, size, vel, edge_index, direc, acttype, laneidx, 'Model Prediction', cmap, target.path, target.location_id, target.px_to_utm, opts['uniD_config'])
 
     title = target.prompt[0]
-    wrapped_title = "\n".join(textwrap.wrap(".".join(title), width=80))
+    wrapped_title = "\n".join(textwrap.wrap(" ".join(title), width=80))
 
     plt.suptitle(wrapped_title, fontsize=14, y=0.98)
     plt.tight_layout(rect=[0, 0, 1, 0.90])
@@ -220,7 +238,7 @@ def plot_comparison(target, output, edge_index, config, opts, idx):
         plt.close()
 
 
-def plot_output(output, latent, edge_index, target, config, opts, save_dir=None):
+def plot_output(output, latent, edge_index, target, config, opts, sentence, save_dir=None):
     latent = latent.detach().cpu().numpy()
     pos, size, vel, acttype, direc, laneidx = output[0], output[1], output[2], output[3], output[4], output[5]
 
@@ -243,13 +261,17 @@ def plot_output(output, latent, edge_index, target, config, opts, save_dir=None)
 
     plt.figure(figsize=(14, 6))
 
+    wrapped_title = "\n".join(textwrap.wrap(" ".join(sentence), width=70))
+
     ax1 = plt.subplot(1, 2, 1)
     ax1.imshow(latent, cmap=cmap)
+    ax1.set_title(wrapped_title)
 
     ax2 = plt.subplot(1, 2, 2)
     draw(ax2, pos, size, vel, edge_index, direc, acttype, laneidx, 'Model Prediction', cmap, target.path, target.location_id, target.px_to_utm, opts['uniD_config'])
 
     plt.tight_layout()
+
 
     if save_dir:
         print("Saved: ", save_dir)

@@ -32,12 +32,12 @@ def anti_overlap_loss(pos, size, group_size):
     center_delta = (pos.unsqueeze(1) - pos.unsqueeze(2)).abs()
     avg_size = (size.unsqueeze(1) + size.unsqueeze(2)) / 2
 
-    penetration = torch.clamp(center_delta - avg_size, min=0.0)
+    penetration = torch.clamp(avg_size - center_delta, min=0.0)
     collision = penetration[..., 0] * penetration[..., 1]
     mask = ~torch.eye(pos.size(1), device=pos.device, dtype=torch.bool)
     collision = collision[:, mask]
 
-    return collision.sum()
+    return collision.mean()
 
 
 def directional_cosine_loss(pred, target):
@@ -46,26 +46,6 @@ def directional_cosine_loss(pred, target):
     cosine = (pred * target).sum(dim=-1)  # dot product
     angle_distance = 1 - cosine  # 1 - cos(θ)
     return angle_distance
-
-def kl_categorical_from_logits(q_logits, p_logits=None):
-    log_q = F.log_softmax(q_logits, dim=-1)
-    q = log_q.exp()
-    if p_logits is None:
-        K = q.size(-1)
-        log_p = log_q.new_full(log_q.shape, -torch.log(torch.tensor(float(K), device=log_q.device)))
-    else:
-        log_p = F.log_softmax(p_logits, dim=-1)
-    return (q * (log_q - log_p)).sum(dim=-1)  # [B]
-
-def kl_diag_gauss_to_gauss(mu1, logvar1, mu2, logvar2):
-    var1 = logvar1.exp()
-    var2 = logvar2.exp()
-    D = mu1.size(-1)
-    return 0.5 * (
-        (var1/var2).sum(dim=-1) +
-        ((mu2 - mu1).pow(2)/var2).sum(dim=-1) -
-        D + (logvar2 - logvar1).sum(dim=-1)
-    )  # [...,]
 
 
 
@@ -188,7 +168,7 @@ class Runner:
             data = data.to(self.device)
             self.optimizer.zero_grad()
 
-            pos, size, vel, acttype, direction, laneidx, log_var, mu, pi, pi_logits = self.model(data)
+            pos, size, vel, acttype, direction, laneidx, log_var, mu = self.model(data)
 
             pos_loss = self.loss_dict['Posloss'](pos, data.pos)
             size_loss = self.loss_dict['Sizeloss'](size, data.dimen)
@@ -197,22 +177,8 @@ class Runner:
             act_loss = self.loss_dict['Actloss'](acttype, torch.argmax(data.actor_type, axis=1))
             lane_loss = self.loss_dict['Laneloss'](laneidx, torch.argmax(data.lane_index, axis=1))
             overlap_loss = self.loss_dict['OverlapLoss'](pos, size, self.opts['n_actors'])
+            kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
 
-            
-            B, K, D = mu.size(0), self.model.n_components, self.model.latent_dim
-            mu_kd     = mu.view(B, K, D)
-            logvar_kd = log_var.view(B, K, D)
-
-            kl_y = kl_categorical_from_logits(pi_logits, self.model.prior_logits)  # [B]
-
-            prior_mu     = self.model.prior_mu.unsqueeze(0).expand(B, K, D)
-            prior_logvar = self.model.prior_logvar.unsqueeze(0).expand(B, K, D)
-            kl_k = kl_diag_gauss_to_gauss(mu_kd, logvar_kd, prior_mu, prior_logvar)  # [B,K]
-
-            pi_probs = F.softmax(pi_logits, dim=1)  
-            kl_z = (pi_probs * kl_k).sum(dim=-1) 
-
-            kld_loss = (kl_y + kl_z).mean()
 
             loss = 0
 
@@ -274,7 +240,7 @@ class Runner:
             for idx, data in enumerate(self.validation_loader):
                 data = data.to(self.device)
 
-                pos, size, vel, acttype, direction, laneidx, log_var, mu, pi, pi_logits = self.model(data)
+                pos, size, vel, acttype, direction, laneidx, log_var, mu = self.model(data)
 
                 pos_loss = self.loss_dict['Posloss'](pos, data.pos) 
                 size_loss = self.loss_dict['Sizeloss'](size, data.dimen) 
@@ -283,21 +249,8 @@ class Runner:
                 direc_loss = self.loss_dict['Directionloss'](direction, data.direction) 
                 lane_loss = self.loss_dict['Laneloss'](laneidx, data.lane_index) 
                 overlap_loss = self.loss_dict['OverlapLoss'](pos, size, self.opts['n_actors'])
+                kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
 
-                B, K, D = mu.size(0), self.model.n_components, self.model.latent_dim
-                mu_kd     = mu.view(B, K, D)
-                logvar_kd = log_var.view(B, K, D)
-
-                kl_y = kl_categorical_from_logits(pi_logits, self.model.prior_logits)  # [B]
-
-                prior_mu     = self.model.prior_mu.unsqueeze(0).expand(B, K, D)
-                prior_logvar = self.model.prior_logvar.unsqueeze(0).expand(B, K, D)
-                kl_k = kl_diag_gauss_to_gauss(mu_kd, logvar_kd, prior_mu, prior_logvar)  # [B,K]
-
-                pi_probs = F.softmax(pi_logits, dim=1)  
-                kl_z = (pi_probs * kl_k).sum(dim=-1) 
-
-                kld_loss = (kl_y + kl_z).mean()
 
                 loss = 0
 
