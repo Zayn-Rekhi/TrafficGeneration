@@ -42,7 +42,6 @@ def make_utriangle_edge_index(n, group_size=6, device=None):
     if n == 1:
         return per_graph
 
-    # stack with node offsets
     edges = []
     for b in range(n):
         off = b * group_size
@@ -51,7 +50,7 @@ def make_utriangle_edge_index(n, group_size=6, device=None):
     return edge_index
 
 @torch.no_grad()
-def sample_given_embeds_for_plot(model, embeds, k=None, edge_index=None, group_size=6, device=None):
+def sample_given_embeds_for_plot(model, embeds, edge_index=None, group_size=6, device=None):
     """
     Returns:
       output: (pos, size, vel, acttype, direc, laneidx)  # exactly like decoder_only
@@ -61,36 +60,23 @@ def sample_given_embeds_for_plot(model, embeds, k=None, edge_index=None, group_s
     model.eval()
     device = device or next(model.parameters()).device
     embeds = embeds.to(device)
+
     B = embeds.size(0)
 
-    # Condition from text (your class already has this)
-    cond = model.text_proj(embeds) # [B, latent_dim]
-    cond = cond.view((cond.shape[0] * cond.shape[1], cond.shape[2]))
 
+    z = torch.randn(B, model.latent_dim, device=device)
 
-    # Sample z ~ prior (use learned global GMM if present, else N(0,I))
-    if all(hasattr(model, a) for a in ("prior_mu", "prior_logvar", "prior_logits")):
-        K, D = model.n_components, model.latent_dim
-        if k is None:
-            cat = torch.distributions.Categorical(logits=model.prior_logits)
-            k = cat.sample((B,)).to(device)
-        elif isinstance(k, int):
-            k = torch.full((B,), k, dtype=torch.long, device=device)
-        else:
-            k = k.to(device)
-        mu  = model.prior_mu[k]                                # [B, D]
-        std = (0.5 * model.prior_logvar[k]).exp().clamp_min(1e-3)
-        z   = mu + std * torch.randn_like(mu)                  # [B, D]
-    else:
-        z = torch.randn(B, model.latent_dim, device=device)    # fallback
-
-    # Edge index (match your old API)
     if edge_index is None:
         edge_index = make_utriangle_edge_index(B, group_size=group_size, device=device)
 
-    print(z.shape, cond.shape, embeds.shape)
+
+    condition = model.text_proj_attn(embeds)
+    condition = F.layer_norm(condition, condition.shape[-1:])    
+
+    print(z.shape, embeds.shape, condition.shape)
+
     # Decode with condition (this mirrors your forward)
-    posx, posy, sizex, sizey, vel, acttype, dcos, dsin, laneidx = model.decode(z, edge_index, condition=cond)
+    posx, posy, sizex, sizey, vel, acttype, dcos, dsin, laneidx = model.decode(z, edge_index, condition)
     pos   = torch.cat([posx, posy], dim=1)
     size  = torch.cat([sizex, sizey], dim=1)
     direc = F.normalize(torch.cat([dcos, dsin], dim=1), dim=-1)
@@ -186,22 +172,22 @@ class Benchmark:
                 #     "",
                 #     ""
                 # ]
-                sentence = [
+                prompt = [
                     "The ego actor is a car on the road and is stopped.",
                     "A pedestrian is near behind and to the left of the ego actor on the walkway, is moving at low speed, and is heading in the opposite direction of the ego.",
-                    "A pedestrian is far away behind and to the left of the ego actor on the walkway, is moving at low speed, and is heading in the opposite direction of the ego.",
+                    "A car is far away behind and to the left of the ego actor on the road, is moving at low speed, and is heading in the opposite direction of the ego.",
                     "A car is far away behind and to the left of the ego actor on the road, is moving at high speed, and is heading in the opposite direction of the ego.",
                     "A van is near ahead and to the right of the ego actor on the walkway, is stopped, and is heading in the same direction as the ego.",
                     ""
                 ]
 
-                embed = torch.unsqueeze(torch.tensor(self.embedder.encode(sentence), dtype=torch.float32, device=self.device), dim=0)
-                # sample and decode (returns exactly what plot_output expects)
+                embed = self.embedder.encode(prompt)
+                embed = torch.unsqueeze(torch.tensor(embed, dtype=torch.float32, device=self.device), dim=0)
+
                 output, latent, edge_index = sample_given_embeds_for_plot(
                     self.model,
-                    embeds=embed,                   # [B, embed_size]
-                    k=None,                         # or int to force a component
-                    edge_index=None,                # or pass your own
+                    embeds=embed,                   
+                    edge_index=None,                
                     group_size=6,
                     device=self.device
                 )
@@ -215,7 +201,7 @@ class Benchmark:
                     target=next(iter(self.validation_loader)),
                     config=self.config,
                     opts=self.opts,
-                    sentence=sentence,
+                    sentence=prompt,
                     save_dir=os.path.join(self.opts['log_dir'], f"vis_gauss/plot_{idx}.jpg")
                 )
 
