@@ -47,6 +47,18 @@ def directional_cosine_loss(pred, target):
     angle_distance = 1 - cosine  # 1 - cos(θ)
     return angle_distance
 
+def kld_loss(mu, logvar, prior_mu, prior_logvar):
+    var_q = torch.exp(logvar)
+    var_p = torch.exp(prior_logvar)
+
+    kl = 0.5 * (
+        prior_logvar - logvar
+        + (var_q + (mu - prior_mu) ** 2) / var_p
+        - 1
+    )
+
+    kl = kl.sum(dim=1)   
+    return kl.mean()     
 
 
 class Runner:
@@ -104,6 +116,7 @@ class Runner:
             "Laneloss": nn.CrossEntropyLoss(reduction='sum'),
             "Actloss": nn.CrossEntropyLoss(reduction='sum'),
             "OverlapLoss": anti_overlap_loss,
+            "KLDLoss": kld_loss,
         }
 
         self.use_logger = self.opts['use_wandb']
@@ -156,7 +169,18 @@ class Runner:
             if self.use_logger:
                 self.logger.log_metrics(metrics, step=epoch)
     
-            print(f"Epoch {epoch}: {metrics}")
+            print(f"\n=== Epoch {epoch} ===")
+
+            train_metrics = {k: v for k, v in metrics.items() if '_Train' in k}
+            val_metrics = {k: v for k, v in metrics.items() if '_Val' in k}
+            
+            print("\n-- Train Metrics --")
+            for k, v in train_metrics.items():
+                print(f"{k:<20}: {v:.4f}")
+            
+            print("\n-- Validation Metrics --")
+            for k, v in val_metrics.items():
+                print(f"{k:<20}: {v:.4f}")
 
         if self.use_logger:
             self.logger.close()
@@ -168,7 +192,7 @@ class Runner:
             data = data.to(self.device)
             self.optimizer.zero_grad()
 
-            pos, size, vel, acttype, direction, laneidx, log_var, mu = self.model(data)
+            pos, size, vel, acttype, direction, laneidx, log_var, mu, prior_logvar, prior_mu = self.model(data)
 
             pos_loss = self.loss_dict['Posloss'](pos, data.pos)
             size_loss = self.loss_dict['Sizeloss'](size, data.dimen)
@@ -177,7 +201,7 @@ class Runner:
             act_loss = self.loss_dict['Actloss'](acttype, torch.argmax(data.actor_type, axis=1))
             lane_loss = self.loss_dict['Laneloss'](laneidx, torch.argmax(data.lane_index, axis=1))
             overlap_loss = self.loss_dict['OverlapLoss'](pos, size, self.opts['n_actors'])
-            kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
+            kld_loss = self.loss_dict['KLDLoss'](mu, log_var, prior_mu, prior_logvar)
 
 
             loss = 0
@@ -240,7 +264,7 @@ class Runner:
             for idx, data in enumerate(self.validation_loader):
                 data = data.to(self.device)
 
-                pos, size, vel, acttype, direction, laneidx, log_var, mu = self.model(data)
+                pos, size, vel, acttype, direction, laneidx, log_var, mu, prior_logvar, prior_mu = self.model(data)
 
                 pos_loss = self.loss_dict['Posloss'](pos, data.pos) 
                 size_loss = self.loss_dict['Sizeloss'](size, data.dimen) 
@@ -249,7 +273,7 @@ class Runner:
                 direc_loss = self.loss_dict['Directionloss'](direction, data.direction) 
                 lane_loss = self.loss_dict['Laneloss'](laneidx, data.lane_index) 
                 overlap_loss = self.loss_dict['OverlapLoss'](pos, size, self.opts['n_actors'])
-                kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
+                kld_loss = self.loss_dict['KLDLoss'](mu, log_var, prior_mu, prior_logvar)
 
 
                 loss = 0

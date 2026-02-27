@@ -64,33 +64,28 @@ def sample_given_embeds_for_plot(model, embeds, k=None, edge_index=None, group_s
     B = embeds.size(0)
 
     # Condition from text (your class already has this)
-    cond = model.text_proj(embeds) # [B, latent_dim]
-    cond = cond.view((cond.shape[0] * cond.shape[1], cond.shape[2]))
+    
+    condition_attn = model.text_proj(embeds)
+    condition_attn = condition_attn.reshape(-1, condition_attn.size(-1))
 
+    condition_prior = model.text_inv(embeds)
+    condition_prior = condition_prior.reshape((condition_prior.shape[0], condition_prior.shape[1] * condition_prior.shape[2]))
+    
 
-    # Sample z ~ prior (use learned global GMM if present, else N(0,I))
-    if all(hasattr(model, a) for a in ("prior_mu", "prior_logvar", "prior_logits")):
-        K, D = model.n_components, model.latent_dim
-        if k is None:
-            cat = torch.distributions.Categorical(logits=model.prior_logits)
-            k = cat.sample((B,)).to(device)
-        elif isinstance(k, int):
-            k = torch.full((B,), k, dtype=torch.long, device=device)
-        else:
-            k = k.to(device)
-        mu  = model.prior_mu[k]                                # [B, D]
-        std = (0.5 * model.prior_logvar[k]).exp().clamp_min(1e-3)
-        z   = mu + std * torch.randn_like(mu)                  # [B, D]
-    else:
-        z = torch.randn(B, model.latent_dim, device=device)    # fallback
+    prior_mu = model.fc_prior_mu(condition_prior)
+    prior_logvar = model.fc_prior_var(condition_prior)
+
+    std = torch.exp(0.5 * prior_logvar)
+    eps = torch.randn_like(std)
+    z = eps * std + prior_mu
 
     # Edge index (match your old API)
     if edge_index is None:
         edge_index = make_utriangle_edge_index(B, group_size=group_size, device=device)
 
-    print(z.shape, cond.shape, embeds.shape)
+    print(z.shape, condition_attn.shape, embeds.shape)
     # Decode with condition (this mirrors your forward)
-    posx, posy, sizex, sizey, vel, acttype, dcos, dsin, laneidx = model.decode(z, edge_index, condition=cond)
+    posx, posy, sizex, sizey, vel, acttype, dcos, dsin, laneidx = model.decode(z, edge_index, condition=condition_attn)
     pos   = torch.cat([posx, posy], dim=1)
     size  = torch.cat([sizex, sizey], dim=1)
     direc = F.normalize(torch.cat([dcos, dsin], dim=1), dim=-1)
@@ -187,11 +182,11 @@ class Benchmark:
                 #     ""
                 # ]
                 sentence = [
-                    "The ego actor is a car on the road and is stopped.",
-                    "A pedestrian is near behind and to the left of the ego actor on the walkway, is moving at low speed, and is heading in the opposite direction of the ego.",
-                    "A pedestrian is far away behind and to the left of the ego actor on the walkway, is moving at low speed, and is heading in the opposite direction of the ego.",
-                    "A car is far away behind and to the left of the ego actor on the road, is moving at high speed, and is heading in the opposite direction of the ego.",
-                    "A van is near ahead and to the right of the ego actor on the walkway, is stopped, and is heading in the same direction as the ego.",
+                    "The ego actor is a car on the road and is moving at low speed.",
+                    "A car is near behind and to the left of the ego actor on the road, is moving at low speed, and is heading in the opposite direction of the ego.",
+                    "A car is far away behind and to the left of the ego actor on the raod, is moving at low speed, and is heading in the opposite direction of the ego.",
+                    "A van is far away behind and to the left of the ego actor on the road, is moving at high speed, and is heading in the opposite direction of the ego.",
+                    "A van is near ahead and to the left of the ego actor on the road, is moving at high speed, and is heading in the opposite direction of the ego.",
                     ""
                 ]
 

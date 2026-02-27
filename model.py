@@ -408,23 +408,23 @@ class AttentionSceneGeneratorWithEmbeddings(AttentionSceneGenerator):
     def __init__(self, opt, device):    
         super().__init__(opt, device)
 
-        self.fc_mu = nn.Linear(self.latent_dim, self.latent_dim)
-        self.fc_var = nn.Linear(self.latent_dim, self.latent_dim)
-        self.d_ft_init = nn.Linear(self.latent_dim, self.latent_ch * self.n_actors)
-
         self.embed_size = opt['embed_size']
         self.cross_attn_dim = self.head * self.latent_ch
+        self.prior_mid_size = (self.embed_size // 16) * self.n_actors
 
+        self.fc_mu = nn.Linear(self.latent_dim, self.latent_dim)
+        self.fc_var = nn.Linear(self.latent_dim, self.latent_dim)
+
+        self.fc_prior_mu = nn.Linear(self.prior_mid_size, self.latent_dim)
+        self.fc_prior_var = nn.Linear(self.prior_mid_size, self.latent_dim)
+
+        self.d_ft_init = nn.Linear(self.latent_dim, self.latent_ch * self.n_actors)
         self.text_proj = nn.Linear(self.embed_size, self.cross_attn_dim)
-        
-        self.cross_attn = nn.MultiheadAttention(embed_dim=self.cross_attn_dim,
-                                                num_heads=self.head,
-                                                batch_first=True)
-
-        self.text_ffn = nn.Sequential(
-            nn.Linear(self.cross_attn_dim, self.cross_attn_dim),
-            nn.ReLU(),
-            nn.Linear(self.cross_attn_dim, self.cross_attn_dim)
+        self.text_inv = nn.Sequential(
+            nn.Linear(self.embed_size, self.embed_size // 4),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.embed_size // 4, self.embed_size // 16),
+            nn.ReLU(inplace=True)
         )
 
         self.condition_enc_layer = FiLM(self.cross_attn_dim, self.cross_attn_dim)
@@ -437,17 +437,22 @@ class AttentionSceneGeneratorWithEmbeddings(AttentionSceneGenerator):
         return z
 
     def forward(self, data):
-        condition = self.text_proj(data.embeddings)
-        condition = condition.view((condition.shape[0] * condition.shape[1], condition.shape[2]))
+        condition_attn = self.text_proj(data.embeddings)
+        condition_attn = condition_attn.reshape(-1, condition_attn.size(-1))
 
+        condition_prior = self.text_inv(data.embeddings)
+        condition_prior = condition_prior.reshape((condition_prior.shape[0], condition_prior.shape[1] * condition_prior.shape[2]))
+        
+        prior_mu = self.fc_prior_mu(condition_prior)
+        prior_logvar = self.fc_prior_var(condition_prior)
+        
         # Encode scene graph
-        mu, log_var = self.encode(data, condition)
+        mu, log_var = self.encode(data, condition_attn)
         z = self.reparameterize(mu, log_var)
-
 
         # Decode conditioned on cross-attended text
         posx, posy, sizex, sizey, vel, acttype, direc_cos, direc_sin, laneidx = self.decode(
-            z, data.edge_index, condition
+            z, data.edge_index, condition_attn
         )
 
         pos = torch.cat((posx, posy), 1)
@@ -455,7 +460,7 @@ class AttentionSceneGeneratorWithEmbeddings(AttentionSceneGenerator):
         direc = torch.cat((direc_cos, direc_sin), 1)
         direc = F.normalize(direc, dim=-1)
 
-        return pos, size, vel, acttype, direc, laneidx, log_var, mu
+        return pos, size, vel, acttype, direc, laneidx, log_var, mu, prior_logvar, prior_mu
 
     def decoder_only(self, latent, edge_index, text_embeddings=None):
         """
@@ -494,16 +499,12 @@ class AttentionSceneGeneratorWithEmbeddings(AttentionSceneGenerator):
         lane_idx = F.relu(self.lane_index_init(lane_index))
         direc = F.relu(self.direction_init(direction))
 
-        # n_embd_0 = torch.unsqueeze(pos, dim =0)
-        # filler = torch.zeros((pos.shape[0], pos.shape[1] * 3)).to(self.device) # TODO: Replace Later
         n_embd_0 = torch.cat((pos, size, vel, act_type, lane_idx, direc), 1)       
 
         n_embd_1 = F.relu(self.condition_enc_layer(self.e_conv1(n_embd_0, edge_index), condition))
         n_embd_2 = F.relu(self.condition_enc_layer(self.e_conv2(n_embd_1, edge_index), condition))
         n_embd_3 = F.relu(self.condition_enc_layer(self.e_conv3(n_embd_2, edge_index), condition))
 
-
-        
         g_embd_0 = self.global_pool(n_embd_0, data.batch)
         g_embd_1 = self.global_pool(n_embd_1, data.batch)
         g_embd_2 = self.global_pool(n_embd_2, data.batch)
@@ -523,16 +524,9 @@ class AttentionSceneGeneratorWithEmbeddings(AttentionSceneGenerator):
         z = self.d_ft_init(z).view(z.shape[0] * self.n_actors, -1)
 
         d_embd_0 = F.relu(z)
-        print(d_embd_0.shape)
         d_embd_1 = F.relu(self.condition_dec_layer(self.d_conv1(d_embd_0, edge_index), condition))
-        print(d_embd_1.shape)
-
         d_embd_2 = F.relu(self.condition_dec_layer(self.d_conv2(d_embd_1, edge_index), condition))
-        print(d_embd_2.shape)
-
         d_embd_3 = F.relu(self.condition_dec_layer(self.d_conv3(d_embd_2, edge_index), condition))
-        print(d_embd_3.shape)
-
 
 
         posx = F.relu(self.d_posx_0(d_embd_3))

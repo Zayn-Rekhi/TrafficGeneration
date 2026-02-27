@@ -1,6 +1,6 @@
 ###############################  Training setting   ############################
 gpu_ids : 
-  - 0
+  - 1
 
 clean_cache : False
 save_record : False
@@ -14,7 +14,7 @@ start_epoch : 0
 dataset_path: "/home/zayn/dataset_processed_traffic/uniD-dataset-v1.12"
 log_dir: "/home/zayn/genexp/logs"
 
-use_wandb: False 
+use_wandb: True 
 wandb_project: "TrafficVAE"
 wandb_name: "Train"
 wandb_entity: "TrafficGeneration"
@@ -45,12 +45,12 @@ embed_size: 384
 
 ################################    weight setting  #########################################################
 pos_weight : 2.5
-size_weight: 1.5
-vel_weight: 1.0
+size_weight: 0.75
+vel_weight: 0.5
 actor_weight: 1.0
 direction_weight: 2.5
 lane_weight: 2.0
-kld_weight : 4.0
+kld_weight : 3.0
 overlap_weight: 1.0
 
 direction_lambda: 0.05

@@ -89,6 +89,7 @@ class TrafficDataset(Dataset):
             data, embeds = self._load_data(os.path.join(self.data_root, folder))
             all_data.extend(data)
             all_embeddings.extend(embeds)
+            
             print("TrafficDataset.load_data: Loaded data from folder", folder)
             
         return all_data, all_embeddings
